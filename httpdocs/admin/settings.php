@@ -95,7 +95,18 @@ try {
             ['smtp_port', '587'], // Default SMTP port
             ['smtp_encryption', 'tls'], // Default encryption
             ['smtp_username', ''], // Default SMTP username
-            ['smtp_password', ''] // Default SMTP password
+            ['smtp_password', ''], // Default SMTP password
+            ['enable_stripe', '0'],
+            ['stripe_public_key', ''],
+            ['stripe_secret_key', ''],
+            ['enable_paypal', '0'],
+            ['paypal_client_id', ''],
+            ['paypal_secret', ''],
+            ['enable_gocardless', '0'],
+            ['gocardless_access_token', ''],
+            ['gocardless_webhook_secret', ''],
+            ['woo_consumer_key', ''],
+            ['woo_consumer_secret', '']
         ];
         $stmt = $db->prepare("INSERT INTO self_serve_settings (setting_name, setting_value) VALUES (?, ?)");
         foreach ($default_settings as $setting) {
@@ -138,6 +149,9 @@ function save_settings($settings) {
 // Get current settings
 $current_settings = get_settings();
 
+$woo_ck = $current_settings['woo_consumer_key'] ?? '';
+$woo_cs = $current_settings['woo_consumer_secret'] ?? '';
+
 error_log("Current Settings: " . print_r($current_settings, true));
 
 // Process form submission
@@ -164,7 +178,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'payment_instructions' => $_POST['payment_instructions'] ?? '',
             'site_logo' => $_POST['site_logo'] ?? '',
             'logo_location' => $_POST['logo_location'] ?? '',
-            'custom_css' => $_POST['custom_css'] ?? ''
+            'custom_css' => $_POST['custom_css'] ?? '',
+            'enable_stripe' => isset($_POST['enable_stripe']) ? '1' : '0',
+            'stripe_public_key' => $_POST['stripe_public_key'] ?? '',
+            'stripe_secret_key' => $_POST['stripe_secret_key'] ?? '',
+            'enable_paypal' => isset($_POST['enable_paypal']) ? '1' : '0',
+            'paypal_client_id' => $_POST['paypal_client_id'] ?? '',
+            'paypal_secret' => $_POST['paypal_secret'] ?? '',
+            'enable_gocardless' => isset($_POST['enable_gocardless']) ? '1' : '0',
+            'gocardless_access_token' => $_POST['gocardless_access_token'] ?? '',
+            'gocardless_webhook_secret' => $_POST['gocardless_webhook_secret'] ?? '',
+            'woo_consumer_key' => $_POST['woo_consumer_key'] ?? '',
+            'woo_consumer_secret' => $_POST['woo_consumer_secret'] ?? ''
         ];
 
         // Handle logo upload
@@ -260,6 +285,8 @@ $allowed_tabs = ['general', 'branding', 'payment', 'content', 'users', 'order_lo
 if (!in_array($active_tab, $allowed_tabs)) {
     $active_tab = 'general';
 }
+
+require_once 'includes/header.php';
 ?>
 
 <!DOCTYPE html>
@@ -358,6 +385,10 @@ if (!in_array($active_tab, $allowed_tabs)) {
             background: #fdecea;
             color: #b71c1c;
         }
+        /* Remove bottom margin from WooCommerce fields so help text sits close */
+        .woo-field {
+            margin-bottom: 2px !important;
+        }
         @media (max-width: 600px) {
             .admin-container {
                 padding: 12px;
@@ -392,14 +423,22 @@ if (!in_array($active_tab, $allowed_tabs)) {
                 <label for="shop_name">Shop Name:</label>
                 <input type="text" id="shop_name" name="shop_name" value="<?php echo htmlspecialchars($current_settings['shop_name'] ?? '', ENT_QUOTES); ?>" required>
 
+                <label for="shop_url">Shop URL:</label>
+                <input type="text" id="shop_url" name="shop_url" value="<?php echo htmlspecialchars($current_settings['shop_url'] ?? '', ENT_QUOTES); ?>">
+
+                <label for="woo_consumer_key">WooCommerce Consumer Key:</label>
+                <input class="woo-field" type="text" id="woo_consumer_key" name="woo_consumer_key" value="<?php echo htmlspecialchars($current_settings['woo_consumer_key'] ?? '', ENT_QUOTES); ?>">
+                <small style="color:#666; display:block; margin-top:2px; margin-bottom:22px;">Leave blank if you don't use WooCommerce integration.</small>
+
+                <label for="woo_consumer_secret">WooCommerce Consumer Secret:</label>
+                <input class="woo-field" type="text" id="woo_consumer_secret" name="woo_consumer_secret" value="<?php echo htmlspecialchars($current_settings['woo_consumer_secret'] ?? '', ENT_QUOTES); ?>">
+                <small style="color:#666; display:block; margin-top:2px; margin-bottom:22px;">Leave blank if you don't use WooCommerce integration.</small>
+
                 <label for="shop_organization">Organization:</label>
                 <input type="text" id="shop_organization" name="shop_organization" value="<?php echo htmlspecialchars($current_settings['shop_organization'] ?? '', ENT_QUOTES); ?>">
 
                 <label for="currency_symbol">Currency Symbol:</label>
                 <input type="text" id="currency_symbol" name="currency_symbol" value="<?php echo htmlspecialchars($current_settings['currency_symbol'] ?? '', ENT_QUOTES); ?>">
-
-                <label for="shop_url">Shop URL:</label>
-                <input type="text" id="shop_url" name="shop_url" value="<?php echo htmlspecialchars($current_settings['shop_url'] ?? '', ENT_QUOTES); ?>">
 
                 <button type="submit" name="save_settings">Save General Settings</button>
             </form>
@@ -448,13 +487,50 @@ if (!in_array($active_tab, $allowed_tabs)) {
         <?php elseif ($active_tab === 'payment'): ?>
             <form method="post">
                 <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                <label for="enable_manual_payment">
-                    <input type="checkbox" id="enable_manual_payment" name="enable_manual_payment" value="1" <?php echo (isset($current_settings['enable_manual_payment']) && $current_settings['enable_manual_payment'] == '1') ? 'checked' : ''; ?>>
+
+                <h4>Manual Payment</h4>
+                <label>
+                    <input type="checkbox" name="enable_manual_payment" value="1" <?php echo (isset($current_settings['enable_manual_payment']) && $current_settings['enable_manual_payment'] == '1') ? 'checked' : ''; ?>>
                     Enable Manual Payment
                 </label>
-
-                <label for="payment_instructions">Payment Instructions:</label>
+                <label for="payment_instructions">Manual Payment Instructions:</label>
                 <textarea id="payment_instructions" name="payment_instructions" rows="3"><?php echo htmlspecialchars($current_settings['payment_instructions'] ?? '', ENT_QUOTES); ?></textarea>
+
+                <hr>
+
+                <h4>Stripe</h4>
+                <label>
+                    <input type="checkbox" name="enable_stripe" value="1" <?php echo (isset($current_settings['enable_stripe']) && $current_settings['enable_stripe'] == '1') ? 'checked' : ''; ?>>
+                    Enable Stripe Payments
+                </label>
+                <label for="stripe_public_key">Stripe Public Key:</label>
+                <input type="text" id="stripe_public_key" name="stripe_public_key" value="<?php echo htmlspecialchars($current_settings['stripe_public_key'] ?? '', ENT_QUOTES); ?>">
+                <label for="stripe_secret_key">Stripe Secret Key:</label>
+                <input type="text" id="stripe_secret_key" name="stripe_secret_key" value="<?php echo htmlspecialchars($current_settings['stripe_secret_key'] ?? '', ENT_QUOTES); ?>">
+
+                <hr>
+
+                <h4>PayPal</h4>
+                <label>
+                    <input type="checkbox" name="enable_paypal" value="1" <?php echo (isset($current_settings['enable_paypal']) && $current_settings['enable_paypal'] == '1') ? 'checked' : ''; ?>>
+                    Enable PayPal Payments
+                </label>
+                <label for="paypal_client_id">PayPal Client ID:</label>
+                <input type="text" id="paypal_client_id" name="paypal_client_id" value="<?php echo htmlspecialchars($current_settings['paypal_client_id'] ?? '', ENT_QUOTES); ?>">
+                <label for="paypal_secret">PayPal Secret:</label>
+                <input type="text" id="paypal_secret" name="paypal_secret" value="<?php echo htmlspecialchars($current_settings['paypal_secret'] ?? '', ENT_QUOTES); ?>">
+
+                <hr>
+
+                <h4>GoCardless</h4>
+                <label>
+                    <input type="checkbox" name="enable_gocardless" value="1" <?php echo (isset($current_settings['enable_gocardless']) && $current_settings['enable_gocardless'] == '1') ? 'checked' : ''; ?>>
+                    Enable GoCardless Payments
+                </label>
+                <label for="gocardless_access_token">GoCardless Access Token:</label>
+                <input type="text" id="gocardless_access_token" name="gocardless_access_token" value="<?php echo htmlspecialchars($current_settings['gocardless_access_token'] ?? '', ENT_QUOTES); ?>">
+                <label for="gocardless_webhook_secret">GoCardless Webhook Secret:</label>
+                <input type="text" id="gocardless_webhook_secret" name="gocardless_webhook_secret" value="<?php echo htmlspecialchars($current_settings['gocardless_webhook_secret'] ?? '', ENT_QUOTES); ?>">
 
                 <button type="submit" name="save_settings">Save Payment Settings</button>
             </form>
@@ -493,3 +569,5 @@ if (!in_array($active_tab, $allowed_tabs)) {
     </div>
 </body>
 </html>
+
+<?php require_once 'includes/footer.php'; ?>

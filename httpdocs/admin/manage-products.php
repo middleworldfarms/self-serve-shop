@@ -1,14 +1,22 @@
 <?php
 // filepath: /var/www/vhosts/middleworldfarms.org/self-serve-shop/admin/manage-products.php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 require_once '../config.php';
 
-// Add to the top of each admin file
+// Admin authentication
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: index.php');
     exit;
 }
 
-// Add CSRF protection
+// CSRF protection
 if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
@@ -16,62 +24,99 @@ if (!isset($_SESSION['csrf_token'])) {
 $message = '';
 $error = '';
 
+// WooCommerce API credentials
+$settings = function_exists('get_settings') ? get_settings() : [];
+$woo_url = rtrim($settings['shop_url'] ?? '', '/');
+$woo_ck = $settings['woo_consumer_key'] ?? '';
+$woo_cs = $settings['woo_consumer_secret'] ?? '';
+
+if (isset($_POST['import_woocommerce'])) {
+    $endpoint = $woo_url . '/wp-json/wc/v3/products?per_page=100'; // Adjust per_page as needed
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $endpoint);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_USERPWD, $woo_ck . ":" . $woo_cs);
+    curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($http_code === 200 && $response) {
+        $woo_products = json_decode($response, true);
+        $imported = 0;
+        if (is_array($woo_products)) {
+            $db = new PDO(
+                'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME, 
+                DB_USER, 
+                DB_PASS
+            );
+            foreach ($woo_products as $product) {
+                $name = $product['name'];
+                $description = $product['description'];
+                $price = $product['price'];
+                $regular_price = $product['regular_price'];
+                $sale_price = $product['sale_price'];
+                $image = !empty($product['images']) ? $product['images'][0]['src'] : '';
+                $status = ($product['status'] === 'publish') ? 'active' : 'inactive';
+
+                // Insert or update by name (or use SKU if you prefer)
+                $stmt = $db->prepare("SELECT id FROM sss_products WHERE name = ?");
+                $stmt->execute([$name]);
+                if ($stmt->fetch()) {
+                    // Update existing
+                    $stmt = $db->prepare("UPDATE sss_products SET description=?, price=?, regular_price=?, sale_price=?, image=?, status=? WHERE name=?");
+                    $stmt->execute([$description, $price, $regular_price, $sale_price, $image, $status, $name]);
+                } else {
+                    // Insert new
+                    $stmt = $db->prepare("INSERT INTO sss_products (name, description, price, regular_price, sale_price, image, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$name, $description, $price, $regular_price, $sale_price, $image, $status]);
+                }
+                $imported++;
+            }
+            $message = "$imported products imported from WooCommerce.";
+        } else {
+            $error = "No products found or invalid response from WooCommerce.";
+        }
+    } else {
+        $error = "Failed to fetch products from WooCommerce. HTTP code: $http_code";
+    }
+}
+
 // Handle bulk actions
 if (isset($_POST['bulk_action']) && isset($_POST['selected_products']) && !empty($_POST['selected_products'])) {
     $action = $_POST['bulk_action'];
     $selected_products = $_POST['selected_products'];
-    
-    // Ensure selected_products is an array
     if (!is_array($selected_products)) {
         $selected_products = [$selected_products];
     }
-    
-    // Sanitize product IDs
     $selected_products = array_map('intval', $selected_products);
-    
+
     try {
         $db = new PDO(
             'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME, 
             DB_USER, 
             DB_PASS
         );
-        
+
         if ($action === 'delete') {
             $count = 0;
             foreach ($selected_products as $product_id) {
-                if (defined('DB_TYPE') && DB_TYPE === 'standalone') {
-                    // Standalone mode - Delete from our custom table
-                    $stmt = $db->prepare("DELETE FROM sss_products WHERE id = ?");
-                    $stmt->execute([$product_id]);
-                } else {
-                    // WordPress mode - Only mark as trash, don't actually delete
-                    $stmt = $db->prepare("UPDATE " . TABLE_PREFIX . "posts SET post_status = 'trash' WHERE ID = ? AND post_type = 'product'");
-                    $stmt->execute([$product_id]);
-                }
+                $stmt = $db->prepare("DELETE FROM sss_products WHERE id = ?");
+                $stmt->execute([$product_id]);
                 $count++;
             }
             $message = $count . " product(s) deleted successfully.";
-        } 
-        elseif ($action === 'set_active' || $action === 'set_inactive') {
-            $status = ($action === 'set_active') ? 'publish' : 'draft';
+        } elseif ($action === 'set_active' || $action === 'set_inactive') {
+            $new_status = ($action === 'set_active') ? 'active' : 'inactive';
             $count = 0;
-            
             foreach ($selected_products as $product_id) {
-                if (defined('DB_TYPE') && DB_TYPE === 'standalone') {
-                    // Standalone mode - Update status in our custom table
-                    $new_status = ($action === 'set_active') ? 'active' : 'inactive';
-                    $stmt = $db->prepare("UPDATE sss_products SET status = ? WHERE id = ?");
-                    $stmt->execute([$new_status, $product_id]);
-                } else {
-                    // WordPress mode - Update post status
-                    $stmt = $db->prepare("UPDATE " . TABLE_PREFIX . "posts SET post_status = ? WHERE ID = ? AND post_type = 'product'");
-                    $stmt->execute([$status, $product_id]);
-                }
+                $stmt = $db->prepare("UPDATE sss_products SET status = ? WHERE id = ?");
+                $stmt->execute([$new_status, $product_id]);
                 $count++;
             }
-            
-            $status_text = ($action === 'set_active') ? 'active' : 'inactive';
-            $message = $count . " product(s) set to " . $status_text . " successfully.";
+            $message = $count . " product(s) set to " . $new_status . " successfully.";
         }
     } catch (PDOException $e) {
         $error = "Database error: " . $e->getMessage();
@@ -81,11 +126,8 @@ if (isset($_POST['bulk_action']) && isset($_POST['selected_products']) && !empty
 // Handle CSV Import
 if (isset($_POST['import_products']) && isset($_FILES['csv_file'])) {
     $file = $_FILES['csv_file'];
-    
-    // Check if the file is a CSV
     $fileType = pathinfo($file['name'], PATHINFO_EXTENSION);
     if (strtolower($fileType) === 'csv') {
-        // Check if there was an error uploading the file
         if ($file['error'] === UPLOAD_ERR_OK) {
             try {
                 $db = new PDO(
@@ -93,47 +135,31 @@ if (isset($_POST['import_products']) && isset($_FILES['csv_file'])) {
                     DB_USER, 
                     DB_PASS
                 );
-                
-                // Open the CSV file
                 $handle = fopen($file['tmp_name'], 'r');
-                
-                // Get the header row to determine column order
                 $header = fgetcsv($handle);
-                
-                // Standardize header names
                 $header = array_map('trim', $header);
                 $header = array_map('strtolower', $header);
-                
-                // Define expected columns and their positions
                 $columnMap = [];
                 $requiredColumns = ['name', 'price'];
                 $allColumns = ['name', 'description', 'price', 'regular_price', 'sale_price', 'image', 'status'];
-                
-                // Map column positions
                 foreach ($allColumns as $column) {
                     $pos = array_search($column, $header);
                     if ($pos !== false) {
                         $columnMap[$column] = $pos;
                     }
                 }
-                
-                // Check if required columns exist
                 $missingColumns = [];
                 foreach ($requiredColumns as $column) {
                     if (!isset($columnMap[$column])) {
                         $missingColumns[] = $column;
                     }
                 }
-                
                 if (!empty($missingColumns)) {
                     $error = "Required columns missing in CSV: " . implode(', ', $missingColumns);
                 } else {
-                    // Process the CSV data
                     $count = 0;
                     $skipped = 0;
-                    
                     while (($data = fgetcsv($handle)) !== false) {
-                        // Extract data using the column map
                         $name = isset($columnMap['name']) ? trim($data[$columnMap['name']]) : '';
                         $description = isset($columnMap['description']) ? trim($data[$columnMap['description']]) : '';
                         $price = isset($columnMap['price']) ? floatval(trim($data[$columnMap['price']])) : 0;
@@ -141,91 +167,31 @@ if (isset($_POST['import_products']) && isset($_FILES['csv_file'])) {
                         $sale_price = isset($columnMap['sale_price']) ? floatval(trim($data[$columnMap['sale_price']])) : 0;
                         $image = isset($columnMap['image']) ? trim($data[$columnMap['image']]) : '';
                         $status = isset($columnMap['status']) ? trim($data[$columnMap['status']]) : 'active';
-                        
-                        // Simple validation
                         if (empty($name) || $price <= 0) {
                             $skipped++;
                             continue;
                         }
-                        
-                        // Normalize status
                         $status = strtolower($status);
                         if ($status !== 'active' && $status !== 'inactive') {
                             $status = 'active';
                         }
-                        
-                        if (defined('DB_TYPE') && DB_TYPE === 'standalone') {
-                            // Standalone mode - Insert into our custom table
-                            $stmt = $db->prepare("
-                                INSERT INTO sss_products 
-                                (name, description, price, regular_price, sale_price, image, status) 
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
-                            ");
-                            $stmt->execute([
-                                $name, 
-                                $description, 
-                                $price, 
-                                $regular_price,
-                                $sale_price > 0 ? $sale_price : null,
-                                $image,
-                                $status
-                            ]);
-                        } else {
-                            // WordPress mode - Insert into WP tables
-                            // First insert the product post
-                            $wpStatus = ($status === 'active') ? 'publish' : 'draft';
-                            
-                            $stmt = $db->prepare("
-                                INSERT INTO " . TABLE_PREFIX . "posts 
-                                (post_title, post_content, post_status, post_type, post_date, post_modified) 
-                                VALUES (?, ?, ?, 'product', NOW(), NOW())
-                            ");
-                            $stmt->execute([$name, $description, $wpStatus]);
-                            
-                            // Get the new product ID
-                            $productId = $db->lastInsertId();
-                            
-                            // Insert price meta data
-                            $metaData = [
-                                ['_price', $price],
-                                ['_regular_price', $regular_price]
-                            ];
-                            
-                            if ($sale_price > 0) {
-                                $metaData[] = ['_sale_price', $sale_price];
-                            }
-                            
-                            foreach ($metaData as $meta) {
-                                $stmt = $db->prepare("
-                                    INSERT INTO " . TABLE_PREFIX . "postmeta 
-                                    (post_id, meta_key, meta_value) 
-                                    VALUES (?, ?, ?)
-                                ");
-                                $stmt->execute([
-                                    $productId,
-                                    $meta[0],
-                                    $meta[1]
-                                ]);
-                            }
-                            
-                            // If image URL provided, try to attach it (complex in WP, simplified here)
-                            if (!empty($image)) {
-                                // For actually handling image import, you'd need WordPress functions
-                                // This is a simplified placeholder
-                                $stmt = $db->prepare("
-                                    INSERT INTO " . TABLE_PREFIX . "postmeta 
-                                    (post_id, meta_key, meta_value) 
-                                    VALUES (?, '_product_image_url', ?)
-                                ");
-                                $stmt->execute([$productId, $image]);
-                            }
-                        }
-                        
+                        $stmt = $db->prepare("
+                            INSERT INTO sss_products 
+                            (name, description, price, regular_price, sale_price, image, status) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ");
+                        $stmt->execute([
+                            $name, 
+                            $description, 
+                            $price, 
+                            $regular_price,
+                            $sale_price > 0 ? $sale_price : null,
+                            $image,
+                            $status
+                        ]);
                         $count++;
                     }
-                    
                     fclose($handle);
-                    
                     if ($count > 0) {
                         $message = "$count products imported successfully. ";
                         if ($skipped > 0) {
@@ -248,7 +214,6 @@ if (isset($_POST['import_products']) && isset($_FILES['csv_file'])) {
     }
 }
 
-// Helper function to get file upload error messages
 function getFileUploadErrorMessage($errorCode) {
     switch ($errorCode) {
         case UPLOAD_ERR_INI_SIZE:
@@ -273,24 +238,14 @@ function getFileUploadErrorMessage($errorCode) {
 // Handle individual product deletion
 if (isset($_POST['delete_product']) && isset($_POST['product_id'])) {
     $product_id = (int)$_POST['product_id'];
-    
     try {
         $db = new PDO(
             'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME, 
             DB_USER, 
             DB_PASS
         );
-        
-        if (defined('DB_TYPE') && DB_TYPE === 'standalone') {
-            // Standalone mode - Delete from our custom table
-            $stmt = $db->prepare("DELETE FROM sss_products WHERE id = ?");
-            $stmt->execute([$product_id]);
-        } else {
-            // WordPress mode - Only mark as trash, don't actually delete
-            $stmt = $db->prepare("UPDATE " . TABLE_PREFIX . "posts SET post_status = 'trash' WHERE ID = ? AND post_type = 'product'");
-            $stmt->execute([$product_id]);
-        }
-        
+        $stmt = $db->prepare("DELETE FROM sss_products WHERE id = ?");
+        $stmt->execute([$product_id]);
         $message = "Product deleted successfully.";
     } catch (PDOException $e) {
         $error = "Database error: " . $e->getMessage();
@@ -304,64 +259,23 @@ try {
         DB_USER, 
         DB_PASS
     );
-    
-    if (defined('DB_TYPE') && DB_TYPE === 'standalone') {
-        // First, check if the sss_products table exists, create if not
-        $db->query("
-            CREATE TABLE IF NOT EXISTS sss_products (
-                id INT(11) AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(255) NOT NULL,
-                description TEXT,
-                price DECIMAL(10,2) NOT NULL,
-                regular_price DECIMAL(10,2) NOT NULL,
-                sale_price DECIMAL(10,2) NULL,
-                image VARCHAR(255),
-                status ENUM('active', 'inactive') DEFAULT 'active',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            ) ENGINE=InnoDB;
-        ");
-        
-        // Standalone mode - Get from our custom table
-        $stmt = $db->query("SELECT * FROM sss_products ORDER BY name");
-        $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } else {
-        // WordPress mode - Get from WP tables
-        $stmt = $db->query("
-            SELECT p.ID, p.post_title as name, p.post_status,
-                   MAX(CASE WHEN pm.meta_key = '_price' THEN pm.meta_value END) as price,
-                   MAX(CASE WHEN pm.meta_key = '_regular_price' THEN pm.meta_value END) as regular_price,
-                   MAX(CASE WHEN pm.meta_key = '_sale_price' THEN pm.meta_value END) as sale_price,
-                   MAX(CASE WHEN pm.meta_key = '_thumbnail_id' THEN pm.meta_value END) as thumbnail_id
-            FROM " . TABLE_PREFIX . "posts p
-            LEFT JOIN " . TABLE_PREFIX . "postmeta pm ON p.ID = pm.post_id
-            WHERE p.post_type = 'product'
-            AND p.post_status IN ('publish', 'draft')
-            GROUP BY p.ID
-            ORDER BY p.post_title
-        ");
-        
-        $products = [];
-        while ($product = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            // Get image URL if available
-            $image_url = null;
-            if ($product['thumbnail_id']) {
-                $img_stmt = $db->prepare("SELECT guid FROM " . TABLE_PREFIX . "posts WHERE ID = ?");
-                $img_stmt->execute([$product['thumbnail_id']]);
-                $image_url = $img_stmt->fetchColumn();
-            }
-            
-            $products[] = [
-                'id' => $product['ID'],
-                'name' => $product['name'],
-                'price' => $product['price'],
-                'regular_price' => $product['regular_price'],
-                'sale_price' => $product['sale_price'],
-                'image' => $image_url,
-                'status' => $product['post_status'] === 'publish' ? 'active' : 'inactive'
-            ];
-        }
-    }
+    // Create table if not exists
+    $db->query("
+        CREATE TABLE IF NOT EXISTS sss_products (
+            id INT(11) AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            description TEXT,
+            price DECIMAL(10,2) NOT NULL,
+            regular_price DECIMAL(10,2) NOT NULL,
+            sale_price DECIMAL(10,2) NULL,
+            image VARCHAR(255),
+            status ENUM('active', 'inactive') DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB;
+    ");
+    $stmt = $db->query("SELECT * FROM sss_products ORDER BY name");
+    $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $error = "Database error: " . $e->getMessage();
     $products = [];
@@ -715,6 +629,14 @@ try {
                                 <p>CSV must include at least "name" and "price" columns.</p>
                             </div>
                             <button type="submit" name="import_products" class="button">Import Products</button>
+                        </div>
+                        
+                        <!-- WooCommerce Import -->
+                        <div class="sidebar-section">
+                            <h3>Import from WooCommerce</h3>
+                            <form method="post">
+                                <button type="submit" name="import_woocommerce" class="button">Import from WooCommerce</button>
+                            </form>
                         </div>
                         
                         <!-- Export section -->

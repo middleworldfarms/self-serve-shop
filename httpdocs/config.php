@@ -11,15 +11,12 @@ if (defined('CONFIG_LOADED')) {
 }
 define('CONFIG_LOADED', true);
 
-// Database configuration (use environment variables for flexibility)
+// Database configuration (standalone)
 if (!defined('DB_TYPE')) define('DB_TYPE', 'mysql');
-if (!defined('DB_HOST')) define('DB_HOST', 'localhost'); // Database host
-if (!defined('DB_NAME')) define('DB_NAME', 'self-serv-shop'); // Replace with your actual database name
-if (!defined('DB_USER')) define('DB_USER', 'martin-sell-serve-shop'); // Replace with your actual database username
-if (!defined('DB_PASS')) define('DB_PASS', 'g78t~H9s1'); // Replace with your actual database password
-
-// WordPress table prefix (only needed if you're still using WordPress tables)
-if (!defined('TABLE_PREFIX')) define('TABLE_PREFIX', ''); // Can be empty if not using WP tables
+if (!defined('DB_HOST')) define('DB_HOST', 'localhost');
+if (!defined('DB_NAME')) define('DB_NAME', 'self-serv-shop');
+if (!defined('DB_USER')) define('DB_USER', 'martin-sell-serve-shop');
+if (!defined('DB_PASS')) define('DB_PASS', 'g78t~H9s1');
 
 // Shop settings
 if (!defined('CURRENCY_SYMBOL')) define('CURRENCY_SYMBOL', '£');

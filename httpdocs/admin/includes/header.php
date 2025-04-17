@@ -1,109 +1,79 @@
 <?php
-// Ensure admin is logged in
+if (session_status() === PHP_SESSION_NONE) session_start();
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: index.php');
     exit;
 }
+require_once '../config.php';
+$settings = function_exists('get_settings') ? get_settings() : [];
+$primary = $settings['primary_color'] ?? '#4CAF50';
+$secondary = $settings['secondary_color'] ?? '#388E3C';
+$shop_name = $settings['shop_name'] ?? 'Self-Serve Shop';
+$logo = !empty($settings['site_logo']) ? '/' . ltrim($settings['site_logo'], '/') : '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <title><?php echo htmlspecialchars($shop_name); ?> Admin</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo isset($page_title) ? $page_title . ' - ' : ''; ?>Self-Serve Shop Admin</title>
-    
-    <?php
-    // Only include these stylesheets when we're on the self-serve shop subdomain
-    $current_domain = $_SERVER['HTTP_HOST'];
-    if ($current_domain == 'self-serve-shop.middleworldfarms.org'):
-    ?>
-    <link rel="stylesheet" href="../assets/css/admin.css">
-    <link rel="stylesheet" href="../css/styles.css">
-    <link rel="stylesheet" href="../assets/css/all.min.css">
-    <?php endif; ?>
-    
-    <script src="../js/admin.js" defer></script>
-    
-    <?php if ($current_domain == 'self-serve-shop.middleworldfarms.org'): ?>
-    <style>
-        /* Scope all admin styles with .admin-wrapper to prevent affecting the main site */
-        .admin-wrapper .admin-header {
-            background-color: #4CAF50;
-            color: white;
-            padding: 15px 0;
-            margin-bottom: 20px;
-            position: relative;
-        }
-        
-        .admin-wrapper .admin-header h1 {
-            color: white;
-            font-size: 24px;
-            margin: 0;
-            text-align: center;
-        }
-        
-        .admin-wrapper .admin-header .back-link {
-            color: white;
-            text-decoration: none;
-            font-size: 14px;
-            position: absolute;
-            left: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-        
-        .admin-wrapper .admin-header .back-link:hover {
-            text-decoration: underline;
-        }
-        
-        .admin-wrapper .admin-header .logout-link {
-            color: white;
-            text-decoration: none;
-            font-size: 14px;
-            position: absolute;
-            right: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-        
-        .admin-wrapper .admin-header .logout-link:hover {
-            text-decoration: underline;
-        }
-    </style>
-    <?php if (isset($current_settings) && !empty($current_settings['custom_css'])): ?>
-    <style>
-    /* Scope custom CSS to only affect the self-serve shop admin */
-    .admin-wrapper {
-        <?php echo $current_settings['custom_css']; ?>
-    }
-    </style>
-    <?php endif; ?>
-    <?php endif; ?>
     <?php if (!empty($settings['custom_css'])): ?>
-    <style><?php echo $settings['custom_css']; ?></style>
+        <style><?php echo $settings['custom_css']; ?></style>
     <?php endif; ?>
+    <style>
+        .admin-header {
+            background: <?php echo $primary; ?>;
+            color: #fff;
+            padding: 24px 0 16px 0;
+            text-align: center;
+            border-bottom: 4px solid <?php echo $secondary; ?>;
+        }
+        .admin-header img {
+            max-height: 80px;
+            margin-bottom: 8px;
+        }
+        .admin-header h1 {
+            margin: 0;
+            font-size: 2rem;
+            letter-spacing: 1px;
+        }
+        .admin-nav-btns {
+            margin: 18px 0 0 0;
+            display: flex;
+            justify-content: center;
+            gap: 18px;
+        }
+        .admin-nav-btns a {
+            background: <?php echo $secondary; ?>;
+            color: #fff;
+            padding: 10px 28px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: background 0.2s;
+            border: none;
+            display: inline-block;
+        }
+        .admin-nav-btns a:hover {
+            background: #256029;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
 </head>
 <body>
+    <div class="admin-header">
+        <?php if ($logo): ?>
+            <img src="<?php echo htmlspecialchars($logo); ?>" alt="Site Logo">
+        <?php endif; ?>
+        <h1><?php echo htmlspecialchars($shop_name); ?> Admin</h1>
+        <div class="admin-nav-btns">
+            <a href="/admin/index.php">Back to Dashboard</a>
+            <a href="/admin/logout.php">Logout</a>
+        </div>
+    </div>
     <div class="admin-wrapper">
-        <header class="admin-header">
-            <div class="header-container">
-                <div class="header-left">
-                    <h1>Self-Serve Shop Admin</h1>
-                    <?php
-                    $settings = get_settings();
-                    if (
-                        !empty($settings['site_logo']) &&
-                        ($settings['logo_location'] === 'header' || $settings['logo_location'] === 'both')
-                    ): ?>
-                        <img src="/<?php echo htmlspecialchars($settings['site_logo']); ?>" alt="Site Logo" style="max-height:80px;">
-                    <?php endif; ?>
-                    <a href="index.php" class="back-link">Back to Dashboard</a>
-                </div>
-                <div class="header-right">
-                    <a href="?logout=1" class="logout-link">Logout</a>
-                </div>
-            </div>
-        </header>
-        
         <div class="admin-content">
-            <!-- Content will be inserted here -->
