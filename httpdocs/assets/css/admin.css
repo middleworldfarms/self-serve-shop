@@ -1,0 +1,243 @@
+/* Admin panel styles */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+.admin-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.admin-header {
+    background-color: #2c3e50;
+    color: white;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+}
+
+.logo img {
+    height: 40px;
+    margin-right: 10px;
+}
+
+.logo h1 {
+    font-size: 1.2rem;
+    margin: 0;
+    color: #ffffff;
+}
+
+.logo a {
+    color: white;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+.admin-user {
+    display: flex;
+    align-items: center;
+}
+
+.admin-user span {
+    color: #ffffff;
+}
+
+.logout-btn {
+    margin-left: 15px;
+    color: white;
+    text-decoration: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    background-color: #e74c3c;
+}
+
+.admin-nav {
+    background-color: #34495e;
+    color: white;
+}
+
+.admin-nav ul {
+    list-style: none;
+    display: flex;
+    padding: 0;
+}
+
+.admin-nav li a {
+    display: block;
+    color: white;
+    padding: 15px 20px;
+    text-decoration: none;
+    transition: background-color 0.3s;
+}
+
+.admin-nav li a:hover {
+    background-color: #2c3e50;
+}
+
+.admin-nav li a.active {
+    background-color: #2980b9;
+}
+
+.admin-content {
+    flex: 1;
+    padding: 20px;
+}
+
+.admin-container {
+    background-color: white;
+    border-radius: 5px;
+    padding: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.admin-footer {
+    background-color: #2c3e50;
+    color: white;
+    text-align: center;
+    padding: 15px;
+    margin-top: auto;
+}
+
+h1 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.data-table th, .data-table td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+
+.data-table th {
+    background-color: #f2f2f2;
+    color: #333;
+}
+
+.data-table tr:nth-child(even) {
+    background-color: #f5f5f5;
+}
+
+.data-table tr:hover {
+    background-color: #e9f7fe;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.pagination a, .pagination span {
+    padding: 8px 16px;
+    margin: 0 5px;
+    border: 1px solid #ddd;
+    color: #2980b9;
+    text-decoration: none;
+}
+
+.pagination .current-page {
+    background-color: #2980b9;
+    color: white;
+    border-color: #2980b9;
+}
+
+.pagination a:hover {
+    background-color: #f5f5f5;
+}
+
+.error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+}
+
+/* Form styles */
+.form-row {
+    margin-bottom: 15px;
+}
+
+.form-row label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-row input[type="text"],
+.form-row input[type="email"],
+.form-row input[type="password"],
+.form-row input[type="number"],
+.form-row select,
+.form-row textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.form-row textarea {
+    min-height: 100px;
+}
+
+.form-row .checkbox-group {
+    margin-top: 5px;
+}
+
+.form-row .checkbox-item {
+    margin-bottom: 8px;
+}
+
+button, .button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+button:hover, .button:hover {
+    background-color: #2980b9;
+}
+
+button.delete, .button.delete {
+    background-color: #e74c3c;
+}
+
+button.delete:hover, .button.delete:hover {
+    background-color: #c0392b;
+}
+
+small {
+    display: block;
+    color: #777;
+    margin-top: 5px;
+}

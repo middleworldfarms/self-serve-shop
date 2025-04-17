@@ -1,0 +1,10 @@
+/* Add this to completely hide any stray price elements */
+body > .product-price,
+html > .product-price,
+body > *:not(.admin-container):not(header):not(main):not(footer) .product-price {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    position: fixed !important;
+    left: -9999px !important;
+}

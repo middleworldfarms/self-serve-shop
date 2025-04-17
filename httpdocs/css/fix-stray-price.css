@@ -1,0 +1,27 @@
+/* Alternate approach using a dedicated div instead of ::before */
+/* Add this to fix-stray-price.css */
+
+/* Then add these styles */
+#stray-price-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 150px;
+    height: 100vh;
+    background-color: white;
+    z-index: 999;
+    pointer-events: none;
+}
+
+/* Ensure the page remains centered */
+body {
+    position: relative;
+    margin: 0 auto !important; /* Force center alignment */
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+/* Fix admin container centering */
+.admin-container {
+    margin-left: auto !important;
+    margin-right: auto !important;
+}

@@ -1,0 +1,629 @@
+/* Main Styles for Middle World Farms Self-Serve Shop */
+
+:root {
+    --primary-color: #4CAF50;
+    --secondary-color: #388E3C;
+    --accent-color: #8BC34A;
+    --text-color: #333;
+    --light-gray: #f5f5f5;
+    --border-color: #ddd;
+}
+
+/* === General Styles === */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--text-color);
+    line-height: 1.6;
+    background-color: var(--light-gray);
+    padding-bottom: 2rem;
+}
+
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.button, button {
+    display: inline-block;
+    background-color: var(--primary-color);
+    color: white;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    text-align: center;
+    text-decoration: none;
+    transition: background-color 0.2s;
+}
+
+.button:hover, button:hover {
+    background-color: var(--secondary-color);
+    text-decoration: none;
+}
+
+/* === Header === */
+header {
+    background-color: #4CAF50 !important; /* Use the actual green color */
+    color: white !important; /* Ensure text is white */
+    padding: 1rem;
+    text-align: center;
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+header h1 {
+    color: white !important; /* Force white text */
+    font-size: 1.8rem;
+    margin: 0;
+}
+
+.cart-icon {
+    position: absolute;
+    top: 50%;
+    right: 1rem;
+    transform: translateY(-50%);
+    background-color: white;
+    color: var(--primary-color);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    text-decoration: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s;
+}
+
+.cart-icon:hover {
+    transform: translateY(-50%) scale(1.05);
+}
+
+.cart-icon img {
+    width: 30px;
+    height: 30px;
+}
+
+.cart-count {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background-color: #FF5722;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.back-link {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: white;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+/* Better logo styling */
+.logo {
+    display: flex;
+    align-items: center;
+    flex-direction: row; /* Display horizontally */
+    margin-bottom: 20px;
+}
+
+.logo a {
+    margin-right: 15px; /* Space between title and logo */
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-decoration: none;
+    color: #333;
+}
+
+.shop-logo {
+    max-width: 200px; /* Slightly smaller for better balance */
+    max-height: 60px;
+    border: none; /* Remove the temporary border */
+    background-color: transparent; /* Remove background */
+}
+
+/* === Product Grid === */
+main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.products h2 {
+    margin-bottom: 1.5rem;
+    text-align: center;
+    color: var(--text-color);
+    font-size: 2rem;
+}
+
+.product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.product-card {
+    position: relative;
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 0;
+    margin-bottom: 20px;
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.product-image {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    margin: 0;
+}
+
+.product-info {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    position: relative;
+}
+
+.product-name {
+    font-size: 1em;
+    margin-top: 0;
+    margin-bottom: 10px;
+    overflow: hidden;
+    max-height: 100px; /* Allow for longer titles */
+}
+
+.product-price {
+    position: absolute;
+    bottom: 50px;
+    left: 15px;
+    font-weight: bold;
+    font-size: 18px;
+    margin: 0;
+}
+
+.add-to-cart {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    width: calc(100% - 30px);
+    padding: 8px 0;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    text-align: center;
+}
+
+.add-to-cart:hover {
+    background-color: var(--secondary-color);
+}
+
+.price {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.quantity {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.quantity label {
+    margin-right: 10px;
+}
+
+.quantity input {
+    width: 60px;
+    padding: 5px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    text-align: center;
+}
+
+.success-message {
+    background-color: #DFF2BF;
+    color: #4F8A10;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+/* === Shopping Cart === */
+.cart-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2rem;
+    background-color: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.cart-table th,
+.cart-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.cart-table thead {
+    background-color: #f7f7f7;
+}
+
+.cart-product {
+    display: flex;
+    align-items: center;
+}
+
+.cart-product img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-right: 1rem;
+}
+
+.remove-item {
+    color: #e53935;
+}
+
+.cart-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2rem;
+}
+
+.empty-cart {
+    text-align: center;
+    padding: 3rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.empty-cart p {
+    margin-bottom: 1.5rem;
+    font-size: 1.2rem;
+}
+
+/* === Checkout === */
+.checkout-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+.order-summary,
+.payment-form {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+}
+
+.order-items {
+    list-style: none;
+    margin-bottom: 1.5rem;
+}
+
+.order-items li {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.order-total {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    font-size: 1.2rem;
+    padding-top: 1rem;
+    border-top: 2px solid #eee;
+}
+
+.form-row {
+    margin-bottom: 1.5rem;
+}
+
+.form-row label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.form-row input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+#card-element {
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    border-radius: 4px;
+}
+
+#card-errors {
+    color: #e53935;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+#submit-button {
+    margin-top: 1.5rem;
+    width: 100%;
+}
+
+/* === Order Confirmation === */
+.confirmation-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+}
+
+.confirmation-content {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 3rem;
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+}
+
+.success-icon {
+    background-color: var(--primary-color);
+    color: white;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    margin: 0 auto 1.5rem;
+}
+
+.confirmation-content h1 {
+    margin-bottom: 1rem;
+}
+
+.confirmation-content p {
+    margin-bottom: 1rem;
+}
+
+.order-number {
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: var(--primary-color);
+}
+
+.confirmation-actions {
+    margin-top: 2rem;
+}
+
+/* === Footer === */
+footer {
+    text-align: center;
+    padding: 1rem;
+    color: #777;
+    font-size: 0.9rem;
+    margin-top: 2rem;
+}
+
+/* === Responsive Design === */
+@media (max-width: 768px) {
+    .product-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .checkout-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .cart-table th,
+    .cart-table td {
+        padding: 0.5rem;
+    }
+    
+    .product-item {
+        width: 100%;
+    }
+    
+    .checkout-form {
+        width: 100%;
+    }
+    
+    .cart-table {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .product-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .back-link {
+        display: none;
+    }
+    
+    .cart-actions {
+        flex-direction: column;
+    }
+    
+    .cart-actions button,
+    .cart-actions a {
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+}
+
+.product-name {
+    height: 4.8em;        /* Force height for 3 lines (1.6em × 3) */
+    line-height: 1.6em;   /* Standard line height */
+    overflow: hidden;     /* Hide overflow */
+    display: -webkit-box;
+    -webkit-line-clamp: 3; /* Limit to 3 lines */
+    -webkit-box-orient: vertical;
+    margin-bottom: 0.5em;
+}
+
+.product-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;         /* Make cards fill their grid cell */
+    min-height: 320px;    /* Minimum height for consistency */
+}
+
+.product-info {
+    flex-grow: 1;         /* Allow info section to expand */
+    display: flex;
+    flex-direction: column;
+}
+
+.product-image {
+    height: 180px;        /* Fixed height for images */
+    object-fit: cover;    /* Maintain aspect ratio but fill the space */
+    margin-bottom: 1em;
+}
+
+/* === CLEAN CARD LAYOUT - MARCH 28, 2025 === */
+.product-card {
+    position: relative;
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 0;
+    margin-bottom: 20px;
+}
+
+.product-image {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    margin: 0;
+}
+
+.product-info {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    position: relative;
+}
+
+.product-name {
+    font-size: 1em;
+    margin-top: 0;
+    margin-bottom: 10px;
+    overflow: hidden;
+    max-height: 100px; /* Allow for longer titles */
+}
+
+.add-to-cart {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    width: calc(100% - 30px);
+    padding: 8px 0;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    text-align: center;
+}
+
+.add-to-cart:hover {
+    background-color: var(--secondary-color);
+}
+
+.product-price {
+    position: absolute;
+    bottom: 50px;
+    left: 15px;
+    font-weight: bold;
+    font-size: 18px;
+    margin: 0;
+    z-index: 1; /* Make sure it appears above other elements */
+}
+
+/* Add this rule to catch any stray price elements */
+body > .product-price {
+    display: none !important; /* Hide any price elements that are direct children of the body */
+}
+
+/* Add this to your styles.css file to fix stray product price displays */
+body > .product-price,
+body > .price,
+body > .amount,
+body > span:not(.contained-span) {
+    display: none !important;
+}
+
+/* Make sure product prices are properly contained */
+.product-item .product-price {
+    position: relative !important; /* Override absolute positioning */
+    margin-left: auto !important; /* Push to the right */
+    margin-right: 10px !important; /* Add some spacing */
+}
+
+/* Ensure the product table has proper structure */
+.product-table td {
+    position: relative !important;
+}
