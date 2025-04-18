@@ -1,16 +1,29 @@
 <?php
 // filepath: /var/www/vhosts/middleworldfarms.org/self-serve-shop/admin/edit-product.php
 require_once '../config.php';
+if (session_status() === PHP_SESSION_NONE) session_start();
 
-// Add to the top of each admin file
+// Authentication check
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: index.php');
     exit;
 }
 
-// Add CSRF protection
+// CSRF protection
 if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// Database connection
+try {
+    $db = new PDO(
+        'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME,
+        DB_USER,
+        DB_PASS
+    );
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Database connection failed: " . $e->getMessage());
 }
 
 $message = '';
@@ -41,12 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "Product price must be greater than zero.";
     } else {
         try {
-            $db = new PDO(
-                'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME, 
-                DB_USER, 
-                DB_PASS
-            );
-            
             // Process image upload if present
             $image_url = null;
             if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
@@ -169,12 +176,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Get the product data
 try {
-    $db = new PDO(
-        'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME, 
-        DB_USER, 
-        DB_PASS
-    );
-    
     if (defined('DB_TYPE') && DB_TYPE === 'standalone') {
         // Standalone mode
         $stmt = $db->prepare("SELECT * FROM sss_products WHERE id = ?");
@@ -218,6 +219,8 @@ try {
 } catch (PDOException $e) {
     $error = "Database error: " . $e->getMessage();
 }
+
+require_once 'includes/header.php';
 ?>
 
 <!DOCTYPE html>
@@ -332,3 +335,5 @@ try {
     </footer>
 </body>
 </html>
+
+<?php require_once 'includes/footer.php'; ?>

@@ -17,6 +17,7 @@ if (!defined('DB_HOST')) define('DB_HOST', 'localhost');
 if (!defined('DB_NAME')) define('DB_NAME', 'self-serv-shop');
 if (!defined('DB_USER')) define('DB_USER', 'martin-sell-serve-shop');
 if (!defined('DB_PASS')) define('DB_PASS', 'g78t~H9s1');
+if (!defined('TABLE_PREFIX')) define('TABLE_PREFIX', '');
 
 // Shop settings
 if (!defined('CURRENCY_SYMBOL')) define('CURRENCY_SYMBOL', '£');

@@ -1,14 +1,30 @@
 <?php
-session_start();
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+require_once '../config.php';
+if (session_status() === PHP_SESSION_NONE) session_start();
+
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: index.php');
     exit;
 }
 
-require_once '../config.php';
+try {
+    $db = new PDO(
+        'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME,
+        DB_USER,
+        DB_PASS
+    );
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Database connection failed: " . $e->getMessage());
+}
+
 require_once '../includes/logger.php';
 
-// Run this in a PHP script
+// Ensure the logs table exists (run once, then you can remove this block)
 try {
     $db->exec("
         CREATE TABLE IF NOT EXISTS order_logs (
@@ -21,16 +37,14 @@ try {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ");
-    // No echo statement here
 } catch (PDOException $e) {
     $error = "Error creating logs table: " . $e->getMessage();
 }
 
-// Get the order ID from the query string
 $order_id = isset($_GET['order_id']) ? intval($_GET['order_id']) : null;
-
-// Get all logs if no specific order is requested
 $logs = [];
+$page_title = '';
+
 if ($order_id) {
     $logs = get_order_logs($order_id);
     $page_title = "Logs for Order #$order_id";
@@ -39,14 +53,12 @@ if ($order_id) {
     $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
     $items_per_page = 50;
     $offset = ($page - 1) * $items_per_page;
-    
+
     try {
-        // Get count for pagination
         $count_stmt = $db->query("SELECT COUNT(*) FROM order_logs");
         $total_items = $count_stmt->fetchColumn();
         $total_pages = ceil($total_items / $items_per_page);
-        
-        // Get logs for current page
+
         $stmt = $db->prepare("
             SELECT * FROM order_logs 
             ORDER BY created_at DESC
@@ -59,20 +71,18 @@ if ($order_id) {
     } catch (PDOException $e) {
         $error = "Database error: " . $e->getMessage();
     }
-    
+
     $page_title = "All Order Logs";
 }
 
-include 'includes/header.php';
+require_once 'includes/header.php';
 ?>
 
 <div class="admin-container">
     <h1><?php echo $page_title; ?></h1>
-    
     <?php if (isset($error)): ?>
         <div class="error-message"><?php echo $error; ?></div>
     <?php endif; ?>
-    
     <?php if (empty($logs)): ?>
         <p>No logs found.</p>
     <?php else: ?>
@@ -102,7 +112,6 @@ include 'includes/header.php';
                         <?php 
                         $details = $log['details'];
                         if (json_decode($details)) {
-                            // Pretty print JSON
                             $json = json_decode($details, true);
                             echo '<ul>';
                             foreach ($json as $key => $value) {
@@ -119,13 +128,11 @@ include 'includes/header.php';
                 <?php endforeach; ?>
             </tbody>
         </table>
-        
         <?php if (!$order_id && isset($total_pages) && $total_pages > 1): ?>
         <div class="pagination">
             <?php if ($page > 1): ?>
                 <a href="?page=<?php echo $page - 1; ?>">&laquo; Previous</a>
             <?php endif; ?>
-            
             <?php for ($i = 1; $i <= $total_pages; $i++): ?>
                 <?php if ($i == $page): ?>
                     <span class="current-page"><?php echo $i; ?></span>
@@ -133,15 +140,13 @@ include 'includes/header.php';
                     <a href="?page=<?php echo $i; ?>"><?php echo $i; ?></a>
                 <?php endif; ?>
             <?php endfor; ?>
-            
             <?php if ($page < $total_pages): ?>
                 <a href="?page=<?php echo $page + 1; ?>">Next &raquo;</a>
             <?php endif; ?>
         </div>
         <?php endif; ?>
     <?php endif; ?>
-    
     <p><a href="orders.php">&laquo; Back to Orders</a></p>
 </div>
 
-<?php include 'includes/footer.php'; ?>
+<?php require_once 'includes/footer.php'; ?>

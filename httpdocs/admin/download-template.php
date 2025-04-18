@@ -1,6 +1,7 @@
 <?php
 // filepath: /var/www/vhosts/middleworldfarms.org/self-serve-shop/admin/download-template.php
 require_once '../config.php';
+if (session_status() === PHP_SESSION_NONE) session_start();
 
 // Check if user is logged in as admin
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {

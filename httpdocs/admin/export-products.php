@@ -1,22 +1,28 @@
 <?php
-// Add to the top of each admin file
+require_once '../config.php';
+if (session_status() === PHP_SESSION_NONE) session_start();
+
+// Authentication check
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: index.php');
     exit;
 }
 
-// Add CSRF protection
+// CSRF protection (optional for downloads, but keep for consistency)
 if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// filepath: /var/www/vhosts/middleworldfarms.org/self-serve-shop/admin/export-products.php
-require_once '../config.php';
-
-// Check if user is logged in as admin
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header('Location: index.php');
-    exit;
+// Database connection
+try {
+    $db = new PDO(
+        'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME,
+        DB_USER,
+        DB_PASS
+    );
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Database connection failed: " . $e->getMessage());
 }
 
 // Set headers for CSV download
@@ -30,16 +36,9 @@ $output = fopen('php://output', 'w');
 fputcsv($output, ['name', 'description', 'price', 'regular_price', 'sale_price', 'image', 'status']);
 
 try {
-    $db = new PDO(
-        'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME, 
-        DB_USER, 
-        DB_PASS
-    );
-    
     if (defined('DB_TYPE') && DB_TYPE === 'standalone') {
         // Standalone mode - Get from our custom table
         $stmt = $db->query("SELECT * FROM sss_products ORDER BY name");
-        
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             fputcsv($output, [
                 $row['name'],
@@ -66,7 +65,6 @@ try {
             GROUP BY p.ID
             ORDER BY p.post_title
         ");
-        
         while ($product = $stmt->fetch(PDO::FETCH_ASSOC)) {
             // Get image URL if available
             $image_url = '';
@@ -75,9 +73,7 @@ try {
                 $img_stmt->execute([$product['thumbnail_id']]);
                 $image_url = $img_stmt->fetchColumn();
             }
-            
             $status = ($product['post_status'] === 'publish') ? 'active' : 'inactive';
-            
             fputcsv($output, [
                 $product['name'],
                 $product['description'],

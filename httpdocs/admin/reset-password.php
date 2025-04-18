@@ -1,10 +1,8 @@
 <?php
-// Reset Password Script for Self-Serve Shop
-// filepath: /var/www/vhosts/middleworldfarms.org/self-serve-shop/admin/reset-password.php
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) session_start();
 require_once '../config.php';
 require_once __DIR__ . '/../../vendor/autoload.php';
 
@@ -19,9 +17,13 @@ if (!isset($_GET['token']) || $_GET['token'] !== $allowed_token) {
     die("Access denied. Please use the correct URL with security token.");
 }
 
-// Connect to database
+// Database connection (only once!)
 try {
-    $db = new PDO('mysql:host=' . DB_HOST . ';dbname=' . DB_NAME, DB_USER, DB_PASS);
+    $db = new PDO(
+        'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME,
+        DB_USER,
+        DB_PASS
+    );
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
     die("Database connection failed: " . $e->getMessage());
@@ -86,10 +88,10 @@ if (isset($_GET['reset_martin'])) {
     try {
         $new_password = 'MiddleWorld2024';
         $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-        
+
         $stmt = $db->prepare("UPDATE users SET password = ? WHERE username = 'martin'");
         $stmt->execute([$hashed_password]);
-        
+
         if ($stmt->rowCount() > 0) {
             $message = "<div class='success'>Martin's password has been reset to: MiddleWorld2024</div>";
             send_email('martin@example.com', 'Password Reset', 'Your password has been reset to: MiddleWorld2024');
@@ -105,16 +107,16 @@ if (isset($_GET['reset_martin'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
     $username = $_POST['username'] ?? '';
     $new_password = $_POST['new_password'] ?? '';
-    
+
     if (empty($username) || empty($new_password)) {
         $message = "<div class='error'>Please enter both username and password.</div>";
     } else {
         try {
             $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-            
+
             $stmt = $db->prepare("UPDATE users SET password = ? WHERE username = ?");
             $stmt->execute([$hashed_password, $username]);
-            
+
             if ($stmt->rowCount() > 0) {
                 $message = "<div class='success'>Password reset successful for user: $username!</div>";
                 send_email('user@example.com', 'Password Reset', "Your password has been reset successfully.");
