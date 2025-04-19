@@ -160,3 +160,24 @@ function mwf_funds_settings_page() {
     </div>
     <?php
 }
+
+// Credit funds on WooCommerce Subscription renewal
+add_action('woocommerce_subscription_renewal_payment_complete', function($subscription) {
+    $user_id = $subscription->get_user_id();
+    $amount = $subscription->get_total(); // Or set a fixed amount per plan
+
+    if ($user_id && $amount > 0) {
+        $current_funds = (float) get_user_meta($user_id, 'woo_funds_balance', true);
+        update_user_meta($user_id, 'woo_funds_balance', $current_funds + $amount);
+
+        // Log the credit transaction
+        add_user_meta($user_id, 'woo_funds_transaction', array(
+            'transaction_id' => 'credit-' . time() . '-' . rand(1000, 9999),
+            'type' => 'credit',
+            'amount' => $amount,
+            'order_id' => $subscription->get_id(),
+            'description' => 'Subscription renewal credit',
+            'date' => current_time('mysql')
+        ));
+    }
+});
