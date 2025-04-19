@@ -23,38 +23,7 @@ try {
 //     }
 // }
 
-// Load settings
-function get_settings() {
-    global $db;
-    $settings = [];
-    try {
-        $stmt = $db->query("SELECT setting_name, setting_value FROM self_serve_settings");
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $settings[$row['setting_name']] = $row['setting_value'];
-        }
-    } catch (Exception $e) {}
-    return $settings;
-}
-
-function save_settings($settings) {
-    global $db;
-    try {
-        $db->beginTransaction();
-        foreach ($settings as $name => $value) {
-            $stmt = $db->prepare("INSERT INTO self_serve_settings (setting_name, setting_value) VALUES (?, ?)
-                                  ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
-            $stmt->execute([$name, $value]);
-        }
-        $db->commit();
-        return true;
-    } catch (PDOException $e) {
-        $db->rollBack();
-        error_log("Settings save error: " . $e->getMessage());
-        return false;
-    }
-}
-
-$settings = get_settings();
+$settings = function_exists('get_settings') ? get_settings() : [];
 $primary = $settings['primary_color'] ?? '#4CAF50';
 $secondary = $settings['secondary_color'] ?? '#388E3C';
 $shop_name = $settings['shop_name'] ?? 'Self-Serve Shop';
@@ -74,7 +43,7 @@ $current_file = basename($_SERVER['PHP_SELF']);
         .admin-header {
             background: <?php echo $primary; ?>;
             color: #fff;
-            padding: 10px 0 6px 0; /* Reduced vertical padding */
+            padding: 10px 0 6px 0;
             border-bottom: 4px solid <?php echo $secondary; ?>;
         }
         .admin-header-inner {
@@ -88,7 +57,7 @@ $current_file = basename($_SERVER['PHP_SELF']);
         .admin-header-logo img {
             max-height: 96px;
             margin-bottom: 0;
-            margin-top: -32px; /* Move logo up by 32px */
+            margin-top: -32px;
             display: block;
             position: relative;
             z-index: 2;
@@ -96,31 +65,10 @@ $current_file = basename($_SERVER['PHP_SELF']);
         .admin-header-title {
             flex: 1;
             text-align: center;
-            font-size: 1.3rem; /* Slightly smaller title */
+            font-size: 1.3rem;
             margin: 0;
             letter-spacing: 1px;
             font-weight: bold;
-        }
-        .admin-nav-btns {
-            display: flex;
-            gap: 18px;
-            margin: 0;
-        }
-        .admin-nav-btns a {
-            background: <?php echo $secondary; ?>;
-            color: #fff;
-            padding: 10px 28px;
-            border-radius: 4px;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 1rem;
-            transition: background 0.2s;
-            border: none;
-            display: inline-block;
-            white-space: nowrap;
-        }
-        .admin-nav-btns a:hover {
-            background: #256029;
         }
         .admin-navbar {
             display: flex;

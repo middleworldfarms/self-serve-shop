@@ -102,3 +102,29 @@ function get_image_path($path = '') {
     $filename = basename($path);
     return '/admin/uploads/' . $filename;
 }
+
+/**
+ * Universal settings loader for both admin and customer
+ */
+function get_settings() {
+    static $settings = null;
+    if ($settings !== null) return $settings;
+
+    try {
+        $db = new PDO(
+            'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME,
+            DB_USER,
+            DB_PASS
+        );
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $stmt = $db->query("SELECT setting_name, setting_value FROM self_serve_settings");
+        $settings = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $settings[$row['setting_name']] = $row['setting_value'];
+        }
+        return $settings;
+    } catch (Exception $e) {
+        error_log("Settings load error: " . $e->getMessage());
+        return [];
+    }
+}

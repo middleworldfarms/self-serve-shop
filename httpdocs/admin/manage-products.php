@@ -50,7 +50,12 @@ require_once 'includes/header.php';
 
 <style>
 .admin-container {
-    margin: 40px 200px 40px 200px;
+    max-width: 1100px;
+    margin: 2rem auto;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(60,72,88,0.08), 0 1.5px 4px rgba(60,72,88,0.04);
+    padding: 36px 36px 24px 36px;
 }
 .admin-layout {
     display: flex;
