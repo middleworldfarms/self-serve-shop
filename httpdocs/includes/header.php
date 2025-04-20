@@ -20,13 +20,13 @@ $current_file = basename($_SERVER['PHP_SELF']);
         .shop-header {
             background: <?php echo $primary; ?>;
             color: #fff;
-            padding: 0 0 6px 0;
+            padding: 0; /* Remove all padding */
             border-bottom: 4px solid <?php echo $secondary; ?>;
         }
         .shop-nav {
             display: flex;
             gap: 18px;
-            padding: 10px 24px;
+            padding: 12px 24px 10px; /* Slightly more top padding to balance */
             background: <?php echo $primary; ?>;
             color: #fff;
             justify-content: center;
@@ -57,11 +57,11 @@ $current_file = basename($_SERVER['PHP_SELF']);
         }
         .shop-header-inner {
             display: grid;
-            grid-template-columns: 160px 1fr 160px; /* Fixed width for logo and right, center for title */
+            grid-template-columns: 160px 1fr 160px;
             align-items: center;
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0 24px;
+            padding: 0 24px 8px; /* Add bottom padding instead of top */
         }
         .shop-header-logo {
             justify-self: start;
@@ -72,15 +72,15 @@ $current_file = basename($_SERVER['PHP_SELF']);
             width: auto;
             height: auto;
             margin-bottom: 0;
-            margin-top: -16px;
+            margin-top: -48px; /* Push up even more */
             display: block;
             position: relative;
             z-index: 2;
         }
         .shop-header-title {
+            font-size: 2rem;
             justify-self: center;
             text-align: center;
-            font-size: 2rem;
             margin: 0;
             letter-spacing: 1px;
             font-weight: bold;
@@ -102,7 +102,7 @@ $current_file = basename($_SERVER['PHP_SELF']);
                     <?php echo isset($_SESSION['cart']) ? array_sum($_SESSION['cart']) : 0; ?>
                 </span>
             </a>
-            <a href="/account.php" class="<?php echo ($current_file === 'account.php') ? 'active' : ''; ?>">My Account</a>
+            <a href="https://middleworldfarms.org/my-account/" target="_blank">My Account <i class="fa fa-external-link" style="font-size: 0.8em;" aria-hidden="true"></i></a>
         </div>
         <div class="shop-header-inner">
             <div class="shop-header-logo">

@@ -17,6 +17,52 @@ try {
     die("Database connection failed: " . $e->getMessage());
 }
 
+// Define save_settings and get_settings functions if they don't exist
+if (!function_exists('save_settings')) {
+    function save_settings($settings) {
+        global $db;
+        try {
+            foreach ($settings as $key => $value) {
+                // Check if setting exists
+                $stmt = $db->prepare("SELECT COUNT(*) FROM self_serve_settings WHERE setting_name = ?");
+                $stmt->execute([$key]);
+                $exists = $stmt->fetchColumn();
+                
+                if ($exists) {
+                    // Update existing setting
+                    $stmt = $db->prepare("UPDATE self_serve_settings SET setting_value = ? WHERE setting_name = ?");
+                    $stmt->execute([$value, $key]);
+                } else {
+                    // Insert new setting
+                    $stmt = $db->prepare("INSERT INTO self_serve_settings (setting_name, setting_value) VALUES (?, ?)");
+                    $stmt->execute([$key, $value]);
+                }
+            }
+            return true;
+        } catch (PDOException $e) {
+            error_log("Error saving settings: " . $e->getMessage());
+            return false;
+        }
+    }
+}
+
+if (!function_exists('get_settings')) {
+    function get_settings() {
+        global $db;
+        try {
+            $stmt = $db->query("SELECT setting_name, setting_value FROM self_serve_settings");
+            $settings = [];
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $settings[$row['setting_name']] = $row['setting_value'];
+            }
+            return $settings;
+        } catch (PDOException $e) {
+            error_log("Error retrieving settings: " . $e->getMessage());
+            return [];
+        }
+    }
+}
+
 // Admin authentication check
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: index.php');
@@ -38,7 +84,7 @@ if (!table_exists('self_serve_settings')) {
     // ... create table code ...
 }
 
-// Now include header (which defines get_settings/save_settings)
+// Now include header
 require_once 'includes/header.php';
 
 $current_settings = get_settings();
@@ -59,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $settings[$key] = $value;
             }
         }
-        $checkboxes = ['enable_manual_payment', 'enable_stripe', 'enable_paypal', 'enable_gocardless'];
+        $checkboxes = ['enable_manual_payment', 'enable_stripe', 'enable_paypal', 'enable_gocardless', 'stripe_test_mode', 'paypal_test_mode', 'gocardless_test_mode', 'enable_woo_funds', 'woo_funds_test_mode'];
         foreach ($checkboxes as $cb) {
             if (!isset($_POST[$cb])) {
                 $settings[$cb] = '0';
@@ -283,8 +329,13 @@ h2 {
             <label for="shop_name">Shop Name:</label>
             <input type="text" id="shop_name" name="shop_name" value="<?php echo htmlspecialchars($current_settings['shop_name'] ?? '', ENT_QUOTES); ?>" required>
 
-            <label for="shop_url">Shop URL:</label>
-            <input type="text" id="shop_url" name="shop_url" value="<?php echo htmlspecialchars($current_settings['shop_url'] ?? '', ENT_QUOTES); ?>">
+            <label for="woo_shop_url">WooCommerce Shop URL:</label>
+            <input type="text" id="woo_shop_url" name="woo_shop_url" value="<?php echo htmlspecialchars($current_settings['woo_shop_url'] ?? '', ENT_QUOTES); ?>">
+            <small>URL to your main WooCommerce store. Leave blank if not using WooCommerce.</small>
+
+            <label for="self_serve_url">Self-Serve Shop URL:</label>
+            <input type="text" id="self_serve_url" name="self_serve_url" value="<?php echo htmlspecialchars($current_settings['self_serve_url'] ?? 'https://middleworld.farm', ENT_QUOTES); ?>" required>
+            <small>The full domain where this self-serve shop is hosted (include https://)</small>
 
             <label for="woo_consumer_key">WooCommerce Consumer Key:</label>
             <input class="woo-field" type="text" id="woo_consumer_key" name="woo_consumer_key" value="<?php echo htmlspecialchars($current_settings['woo_consumer_key'] ?? '', ENT_QUOTES); ?>">
@@ -345,55 +396,292 @@ h2 {
             <button type="submit" name="save_settings">Save Branding Settings</button>
         </form>
     <?php elseif ($active_tab === 'payment'): ?>
+        <!-- Payment method subtabs -->
+        <div class="payment-subtabs">
+            <a href="#manual-payment" class="payment-subtab active">Manual Payment</a>
+            <a href="#stripe" class="payment-subtab">Stripe</a>
+            <a href="#paypal" class="payment-subtab">PayPal</a>
+            <a href="#gocardless" class="payment-subtab">GoCardless</a>
+            <a href="#woo-funds" class="payment-subtab">WooCommerce Funds</a>
+        </div>
+        
         <form method="post" class="admin-settings-form">
             <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
 
-            <h4>Manual Payment</h4>
-            <label>
-                <input type="checkbox" name="enable_manual_payment" value="1" <?php echo (isset($current_settings['enable_manual_payment']) && $current_settings['enable_manual_payment'] == '1') ? 'checked' : ''; ?>>
-                Enable Manual Payment
-            </label>
-            <label for="payment_instructions">Manual Payment Instructions:</label>
-            <textarea id="payment_instructions" name="payment_instructions" rows="3"><?php echo htmlspecialchars($current_settings['payment_instructions'] ?? '', ENT_QUOTES); ?></textarea>
+            <!-- Manual Payment Section -->
+            <div id="manual-payment" class="payment-section active">
+                <h4>Manual Payment</h4>
+                <label>
+                    <input type="checkbox" name="enable_manual_payment" value="1" <?php echo (isset($current_settings['enable_manual_payment']) && $current_settings['enable_manual_payment'] == '1') ? 'checked' : ''; ?>>
+                    Enable Manual Payment
+                </label>
+                <label for="payment_instructions">Manual Payment Instructions:</label>
+                <textarea id="payment_instructions" name="payment_instructions" rows="3"><?php echo htmlspecialchars($current_settings['payment_instructions'] ?? '', ENT_QUOTES); ?></textarea>
+            </div>
 
-            <hr>
+            <!-- Stripe Section -->
+            <div id="stripe" class="payment-section">
+                <h4>Stripe</h4>
+                
+                <label>
+                    <input type="checkbox" name="enable_stripe" value="1" <?php echo (isset($current_settings['enable_stripe']) && $current_settings['enable_stripe'] == '1') ? 'checked' : ''; ?>>
+                    Enable Stripe Payments
+                </label>
+                
+                <label>
+                    <input type="checkbox" name="stripe_test_mode" value="1" <?php echo (isset($current_settings['stripe_test_mode']) && $current_settings['stripe_test_mode'] == '1') ? 'checked' : ''; ?>>
+                    Enable Test Mode
+                </label>
+                <small>Use test mode to verify your integration before accepting real payments. <a href="https://stripe.com/docs/testing" target="_blank">Learn about Stripe test cards</a>.</small>
 
-            <h4>Stripe</h4>
-            <label>
-                <input type="checkbox" name="enable_stripe" value="1" <?php echo (isset($current_settings['enable_stripe']) && $current_settings['enable_stripe'] == '1') ? 'checked' : ''; ?>>
-                Enable Stripe Payments
-            </label>
-            <label for="stripe_public_key">Stripe Public Key:</label>
-            <input type="text" id="stripe_public_key" name="stripe_public_key" value="<?php echo htmlspecialchars($current_settings['stripe_public_key'] ?? '', ENT_QUOTES); ?>">
-            <label for="stripe_secret_key">Stripe Secret Key:</label>
-            <input type="text" id="stripe_secret_key" name="stripe_secret_key" value="<?php echo htmlspecialchars($current_settings['stripe_secret_key'] ?? '', ENT_QUOTES); ?>">
+                <!-- Live Keys Section -->
+                <div class="stripe-live-keys" style="<?php echo (isset($current_settings['stripe_test_mode']) && $current_settings['stripe_test_mode'] == '1') ? 'display:none;' : ''; ?>">
+                    <label for="stripe_publishable_key">Live Publishable Key:</label>
+                    <input type="text" id="stripe_publishable_key" name="stripe_publishable_key" value="<?php echo htmlspecialchars($current_settings['stripe_publishable_key'] ?? '', ENT_QUOTES); ?>">
+                    <small>Your live publishable key (starts with pk_live_)</small>
 
-            <hr>
+                    <label for="stripe_secret_key">Live Secret Key:</label>
+                    <input type="text" id="stripe_secret_key" name="stripe_secret_key" value="<?php echo htmlspecialchars($current_settings['stripe_secret_key'] ?? '', ENT_QUOTES); ?>">
+                    <small>Your live secret key (starts with sk_live_)</small>
+                </div>
 
-            <h4>PayPal</h4>
-            <label>
-                <input type="checkbox" name="enable_paypal" value="1" <?php echo (isset($current_settings['enable_paypal']) && $current_settings['enable_paypal'] == '1') ? 'checked' : ''; ?>>
-                Enable PayPal Payments
-            </label>
-            <label for="paypal_client_id">PayPal Client ID:</label>
-            <input type="text" id="paypal_client_id" name="paypal_client_id" value="<?php echo htmlspecialchars($current_settings['paypal_client_id'] ?? '', ENT_QUOTES); ?>">
-            <label for="paypal_secret">PayPal Secret:</label>
-            <input type="text" id="paypal_secret" name="paypal_secret" value="<?php echo htmlspecialchars($current_settings['paypal_secret'] ?? '', ENT_QUOTES); ?>">
+                <!-- Test Keys Section -->
+                <div class="stripe-test-keys" style="<?php echo (isset($current_settings['stripe_test_mode']) && $current_settings['stripe_test_mode'] == '1') ? '' : 'display:none;'; ?>">
+                    <label for="stripe_test_publishable_key">Test Publishable Key:</label>
+                    <input type="text" id="stripe_test_publishable_key" name="stripe_test_publishable_key" value="<?php echo htmlspecialchars($current_settings['stripe_test_publishable_key'] ?? '', ENT_QUOTES); ?>">
+                    <small>Your test publishable key (starts with pk_test_)</small>
 
-            <hr>
+                    <label for="stripe_test_secret_key">Test Secret Key:</label>
+                    <input type="text" id="stripe_test_secret_key" name="stripe_test_secret_key" value="<?php echo htmlspecialchars($current_settings['stripe_test_secret_key'] ?? '', ENT_QUOTES); ?>">
+                    <small>Your test secret key (starts with sk_test_)</small>
+                </div>
 
-            <h4>GoCardless</h4>
-            <label>
-                <input type="checkbox" name="enable_gocardless" value="1" <?php echo (isset($current_settings['enable_gocardless']) && $current_settings['enable_gocardless'] == '1') ? 'checked' : ''; ?>>
-                Enable GoCardless Payments
-            </label>
-            <label for="gocardless_access_token">GoCardless Access Token:</label>
-            <input type="text" id="gocardless_access_token" name="gocardless_access_token" value="<?php echo htmlspecialchars($current_settings['gocardless_access_token'] ?? '', ENT_QUOTES); ?>">
-            <label for="gocardless_webhook_secret">GoCardless Webhook Secret:</label>
-            <input type="text" id="gocardless_webhook_secret" name="gocardless_webhook_secret" value="<?php echo htmlspecialchars($current_settings['gocardless_webhook_secret'] ?? '', ENT_QUOTES); ?>">
+                <details>
+                    <summary style="cursor: pointer; margin-top: 15px; font-weight: 500; color: #555;">Advanced Stripe Settings</summary>
+                    <div style="padding: 10px 0 5px 15px; border-left: 3px solid #eee;">
+                        <label for="stripe_csa_key">Connect Account Secret key:</label>
+                        <input type="text" id="stripe_csa_key" name="stripe_csa_key" value="<?php echo htmlspecialchars($current_settings['stripe_csa_key'] ?? '', ENT_QUOTES); ?>">
+                        <small>Only needed for marketplace or multi-account setups. Most shops can leave this empty.</small>
+                    </div>
+                </details>
+            </div>
+
+            <!-- PayPal Section -->
+            <div id="paypal" class="payment-section">
+                <h4>PayPal</h4>
+                <label>
+                    <input type="checkbox" name="enable_paypal" value="1" <?php echo (isset($current_settings['enable_paypal']) && $current_settings['enable_paypal'] == '1') ? 'checked' : ''; ?>>
+                    Enable PayPal Payments
+                </label>
+                
+                <label>
+                    <input type="checkbox" name="paypal_test_mode" value="1" <?php echo (isset($current_settings['paypal_test_mode']) && $current_settings['paypal_test_mode'] == '1') ? 'checked' : ''; ?>>
+                    Enable Test Mode
+                </label>
+                <small>Uses PayPal's Sandbox environment for testing. <a href="https://developer.paypal.com/tools/sandbox/" target="_blank">Learn about PayPal sandbox</a>.</small>
+                
+                <!-- Live Keys Section -->
+                <div class="paypal-live-keys" style="<?php echo (isset($current_settings['paypal_test_mode']) && $current_settings['paypal_test_mode'] == '1') ? 'display:none;' : ''; ?>">
+                    <label for="paypal_client_id">Live Client ID:</label>
+                    <input type="text" id="paypal_client_id" name="paypal_client_id" value="<?php echo htmlspecialchars($current_settings['paypal_client_id'] ?? '', ENT_QUOTES); ?>">
+                    <small>Your live Client ID from the PayPal Developer Dashboard</small>
+                    
+                    <label for="paypal_secret">Live Secret:</label>
+                    <input type="text" id="paypal_secret" name="paypal_secret" value="<?php echo htmlspecialchars($current_settings['paypal_secret'] ?? '', ENT_QUOTES); ?>">
+                    <small>Your live Secret from the PayPal Developer Dashboard</small>
+                </div>
+                
+                <!-- Test Keys Section -->
+                <div class="paypal-test-keys" style="<?php echo (isset($current_settings['paypal_test_mode']) && $current_settings['paypal_test_mode'] == '1') ? '' : 'display:none;'; ?>">
+                    <label for="paypal_test_client_id">Sandbox Client ID:</label>
+                    <input type="text" id="paypal_test_client_id" name="paypal_test_client_id" value="<?php echo htmlspecialchars($current_settings['paypal_test_client_id'] ?? '', ENT_QUOTES); ?>">
+                    <small>Your Sandbox Client ID from the PayPal Developer Dashboard</small>
+                    
+                    <label for="paypal_test_secret">Sandbox Secret:</label>
+                    <input type="text" id="paypal_test_secret" name="paypal_test_secret" value="<?php echo htmlspecialchars($current_settings['paypal_test_secret'] ?? '', ENT_QUOTES); ?>">
+                    <small>Your Sandbox Secret from the PayPal Developer Dashboard</small>
+                </div>
+            </div>
+
+            <!-- GoCardless Section -->
+            <div id="gocardless" class="payment-section">
+                <h4>GoCardless</h4>
+                <label>
+                    <input type="checkbox" name="enable_gocardless" value="1" <?php echo (isset($current_settings['enable_gocardless']) && $current_settings['enable_gocardless'] == '1') ? 'checked' : ''; ?>>
+                    Enable GoCardless Payments
+                </label>
+                
+                <label>
+                    <input type="checkbox" name="gocardless_test_mode" value="1" <?php echo (isset($current_settings['gocardless_test_mode']) && $current_settings['gocardless_test_mode'] == '1') ? 'checked' : ''; ?>>
+                    Enable Test Mode
+                </label>
+                <small>Uses GoCardless sandbox environment for testing. <a href="https://developer.gocardless.com/getting-started/developer-tools/testing" target="_blank">Learn about GoCardless testing</a>.</small>
+                
+                <!-- Live Keys Section -->
+                <div class="gocardless-live-keys" style="<?php echo (isset($current_settings['gocardless_test_mode']) && $current_settings['gocardless_test_mode'] == '1') ? 'display:none;' : ''; ?>">
+                    <label for="gocardless_access_token">Live Access Token:</label>
+                    <input type="text" id="gocardless_access_token" name="gocardless_access_token" value="<?php echo htmlspecialchars($current_settings['gocardless_access_token'] ?? '', ENT_QUOTES); ?>">
+                    <small>Your live access token from the GoCardless dashboard</small>
+                    
+                    <label for="gocardless_webhook_secret">Live Webhook Secret:</label>
+                    <input type="text" id="gocardless_webhook_secret" name="gocardless_webhook_secret" value="<?php echo htmlspecialchars($current_settings['gocardless_webhook_secret'] ?? '', ENT_QUOTES); ?>">
+                    <small>Your live webhook secret from the GoCardless dashboard</small>
+                </div>
+                
+                <!-- Test Keys Section -->
+                <div class="gocardless-test-keys" style="<?php echo (isset($current_settings['gocardless_test_mode']) && $current_settings['gocardless_test_mode'] == '1') ? '' : 'display:none;'; ?>">
+                    <label for="gocardless_test_access_token">Sandbox Access Token:</label>
+                    <input type="text" id="gocardless_test_access_token" name="gocardless_test_access_token" value="<?php echo htmlspecialchars($current_settings['gocardless_test_access_token'] ?? '', ENT_QUOTES); ?>">
+                    <small>Your sandbox access token from the GoCardless dashboard</small>
+                    
+                    <label for="gocardless_test_webhook_secret">Sandbox Webhook Secret:</label>
+                    <input type="text" id="gocardless_test_webhook_secret" name="gocardless_test_webhook_secret" value="<?php echo htmlspecialchars($current_settings['gocardless_test_webhook_secret'] ?? '', ENT_QUOTES); ?>">
+                    <small>Your sandbox webhook secret from the GoCardless dashboard</small>
+                </div>
+            </div>
+
+            <!-- WooCommerce Account Funds Section -->
+            <div id="woo-funds" class="payment-section">
+                <h4>WooCommerce Account Funds</h4>
+                <label>
+                    <input type="checkbox" name="enable_woo_funds" value="1" <?php echo (isset($current_settings['enable_woo_funds']) && $current_settings['enable_woo_funds'] == '1') ? 'checked' : ''; ?>>
+                    Enable WooCommerce Account Funds
+                </label>
+                <small>Allow customers to pay using their WooCommerce account balance.</small>
+                
+                <label>
+                    <input type="checkbox" name="woo_funds_test_mode" value="1" <?php echo (isset($current_settings['woo_funds_test_mode']) && $current_settings['woo_funds_test_mode'] == '1') ? 'checked' : ''; ?>>
+                    Enable Test Mode
+                </label>
+                <small>Test mode will simulate payments without affecting actual account balances.</small>
+                
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+                
+                <label for="woo_funds_api_url">WooCommerce API URL:</label>
+                <input type="text" id="woo_funds_api_url" name="woo_funds_api_url" value="<?php echo htmlspecialchars($current_settings['woo_funds_api_url'] ?? $current_settings['woo_shop_url'] ?? '', ENT_QUOTES); ?>">
+                <small>URL to your WooCommerce site API (usually your shop URL)</small>
+                
+                <label for="woo_funds_consumer_key">WooCommerce Consumer Key:</label>
+                <input type="text" id="woo_funds_consumer_key" name="woo_funds_consumer_key" value="<?php echo htmlspecialchars($current_settings['woo_funds_consumer_key'] ?? $current_settings['woo_consumer_key'] ?? '', ENT_QUOTES); ?>">
+                <small>Consumer key from your WooCommerce REST API settings</small>
+                
+                <label for="woo_funds_consumer_secret">WooCommerce Consumer Secret:</label>
+                <input type="text" id="woo_funds_consumer_secret" name="woo_funds_consumer_secret" value="<?php echo htmlspecialchars($current_settings['woo_funds_consumer_secret'] ?? $current_settings['woo_consumer_secret'] ?? '', ENT_QUOTES); ?>">
+                <small>Consumer secret from your WooCommerce REST API settings</small>
+                
+                <div style="margin-top: 20px; padding: 15px; background: #f8f8f8; border-radius: 6px; border-left: 4px solid #388E3C;">
+                    <h5 style="margin-top: 0;">How It Works</h5>
+                    <p>When enabled, this payment method will:</p>
+                    <ol style="padding-left: 20px; margin-bottom: 0;">
+                        <li>Check for a customer's WooCommerce account using their email</li>
+                        <li>Verify they have sufficient funds in their account</li>
+                        <li>Deduct the purchase amount from their WooCommerce account balance</li>
+                        <li>Record the transaction in both systems</li>
+                    </ol>
+                </div>
+            </div>
 
             <button type="submit" name="save_settings">Save Payment Settings</button>
         </form>
+        
+        <style>
+            .payment-subtabs {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-bottom: 30px;
+            }
+            .payment-subtab {
+                padding: 10px 16px;
+                background: #f5f5f5;
+                border-radius: 6px;
+                text-decoration: none;
+                color: #555;
+                font-weight: 600;
+                transition: all 0.2s;
+            }
+            .payment-subtab.active {
+                background: #388E3C;
+                color: white;
+            }
+            .payment-section {
+                display: none;
+                animation: fadeIn 0.3s;
+            }
+            .payment-section.active {
+                display: block;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+        </style>
+        
+        <script>
+            // Payment subtabs functionality
+            document.addEventListener('DOMContentLoaded', function() {
+                const subtabs = document.querySelectorAll('.payment-subtab');
+                const sections = document.querySelectorAll('.payment-section');
+                
+                // Function to show selected section
+                function showSection(sectionId) {
+                    sections.forEach(section => {
+                        section.classList.remove('active');
+                    });
+                    subtabs.forEach(tab => {
+                        tab.classList.remove('active');
+                    });
+                    
+                    document.querySelector(sectionId).classList.add('active');
+                    document.querySelector(`[href="${sectionId}"]`).classList.add('active');
+                }
+                
+                // Add click handlers to tabs
+                subtabs.forEach(tab => {
+                    tab.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        showSection(this.getAttribute('href'));
+                    });
+                });
+                
+                // Initialize all test mode toggles
+                initTestModeToggle('stripe', 'stripe_test_mode');
+                initTestModeToggle('paypal', 'paypal_test_mode');
+                initTestModeToggle('gocardless', 'gocardless_test_mode');
+                initTestModeToggle('woo-funds', 'woo_funds_test_mode');
+                
+                // Function to set up test mode toggles
+                function initTestModeToggle(provider, checkboxName) {
+                    const testModeCheckbox = document.querySelector(`input[name="${checkboxName}"]`);
+                    if (!testModeCheckbox) return;
+                    
+                    const liveKeysContainer = document.querySelector(`.${provider}-live-keys`);
+                    const testKeysContainer = document.querySelector(`.${provider}-test-keys`);
+                    
+                    function toggleKeySections() {
+                        if (testModeCheckbox.checked) {
+                            if (liveKeysContainer) liveKeysContainer.style.display = 'none';
+                            if (testKeysContainer) testKeysContainer.style.display = 'block';
+                        } else {
+                            if (liveKeysContainer) liveKeysContainer.style.display = 'block';
+                            if (testKeysContainer) testKeysContainer.style.display = 'none';
+                        }
+                    }
+                    
+                    // Set initial state and add listener
+                    toggleKeySections();
+                    testModeCheckbox.addEventListener('change', toggleKeySections);
+                }
+                
+                // Optional: Check URL hash for direct linking to a payment method
+                if (window.location.hash) {
+                    const hash = window.location.hash;
+                    if (document.querySelector(hash)) {
+                        showSection(hash);
+                    }
+                }
+            });
+        </script>
     <?php elseif ($active_tab === 'email'): ?>
         <form method="post" class="admin-settings-form">
             <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">

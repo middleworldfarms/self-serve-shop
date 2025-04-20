@@ -12,6 +12,25 @@ if (!isset($_SESSION['cart']) || empty($_SESSION['cart'])) {
     exit;
 }
 
+// Get settings for page title and other variables needed by header
+$settings = get_settings();
+$page_title = 'Checkout - ' . ($settings['shop_name'] ?? 'Self-Serve Shop');
+
+// Fix all payment processing variables
+$stripe_test_mode = isset($settings['stripe_test_mode']) && $settings['stripe_test_mode'] == '1';
+$stripe_publishable_key = $stripe_test_mode ? $settings['stripe_test_publishable_key'] : $settings['stripe_publishable_key'];
+$stripe_secret_key = $stripe_test_mode ? $settings['stripe_test_secret_key'] : $settings['stripe_secret_key'];
+
+// For PayPal
+$paypal_test_mode = isset($settings['paypal_test_mode']) && $settings['paypal_test_mode'] == '1';
+$paypal_client_id = $paypal_test_mode ? $settings['paypal_test_client_id'] : $settings['paypal_client_id'];
+$paypal_secret = $paypal_test_mode ? $settings['paypal_test_secret'] : $settings['paypal_secret'];
+
+// For GoCardless
+$gocardless_test_mode = isset($settings['gocardless_test_mode']) && $settings['gocardless_test_mode'] == '1';
+$gocardless_access_token = $gocardless_test_mode ? $settings['gocardless_test_access_token'] : $settings['gocardless_access_token'];
+$gocardless_webhook_secret = $gocardless_test_mode ? $settings['gocardless_test_webhook_secret'] : $settings['gocardless_webhook_secret'];
+
 // Handle GoCardless redirect completion
 if (isset($_GET['gocardless_complete']) && $_GET['gocardless_complete'] === '1' && isset($_SESSION['gocardless_flow_id'])) {
     $order_id = $_SESSION['gocardless_order_id'] ?? $_GET['order_id'] ?? null;
@@ -85,7 +104,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $payment_error = 'Please fill in all required fields.';
     } else {
         // Process different payment methods based on configured provider
-        switch (PAYMENT_PROVIDER) {
+        $payment_method = $_POST['payment_method'] ?? 'manual';
+        switch ($payment_method) {
             case 'manual':
                 // For manual payments, just record the order
                 $order_id = time() . rand(1000, 9999);
@@ -129,14 +149,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 require_once 'payments/process-payment.php';
                 
                 $payment_result = processPayment(
-                    $order_id, 
-                    $cart_total, 
+                    time() . rand(1000, 9999), // Generate order ID
+                    $cart_total,
                     'woo_funds',
-                    ['customer_email' => $_POST['woo_funds_email']]
+                    [
+                        'customer_email' => $_POST['woo_funds_email'],
+                        'password' => $_POST['woo_funds_password']
+                    ]
                 );
                 
                 if ($payment_result['success']) {
                     // Payment successful - store transaction ID and new balance
+                    $order_id = $payment_result['order_id'] ?? time() . rand(1000, 9999);
+                    $_SESSION['last_order_id'] = $order_id;
                     $transaction_id = $payment_result['transaction_id'] ?? '';
                     $new_balance = $payment_result['new_balance'] ?? 0;
                     
@@ -223,488 +248,461 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+// Include the standard header
+require_once 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Checkout - <?php echo SHOP_NAME; ?></title>
-    <link rel="stylesheet" href="css/styles.css">
-    <style>
-        .checkout-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-top: 20px;
+
+<!-- Update the container style in your CSS section -->
+<style>
+    /* Add this to the top of your existing styles */
+    .container {
+        max-width: calc(100% - 200px); /* 100px on each side */
+        margin-left: 100px;
+        margin-right: 100px;
+        width: auto;
+    }
+    
+    /* Make it responsive for mobile */
+    @media (max-width: 768px) {
+        .container {
+            max-width: calc(100% - 40px);
+            margin-left: 20px;
+            margin-right: 20px;
         }
-        
-        @media (max-width: 768px) {
-            .checkout-container {
-                grid-template-columns: 1fr;
-            }
+    }
+    
+    /* Your existing styles remain below */
+    .checkout-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin: 30px 0;
+    }
+    
+    .order-summary {
+        background: #f9f9f9;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        height: fit-content;
+    }
+    
+    .payment-form {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+    }
+    
+    .payment-options {
+        margin-top: 25px;
+    }
+    
+    .payment-option {
+        margin-bottom: 15px;
+        padding: 15px;
+        border: 1px solid #e5e5e5;
+        border-radius: 8px;
+        background: #f9f9f9;
+    }
+    
+    .payment-option label {
+        font-weight: 600;
+        margin-left: 8px;
+    }
+    
+    .payment-details {
+        margin-top: 15px;
+        padding: 15px;
+        background: white;
+        border-radius: 5px;
+        border: 1px solid #e0e0e0;
+        display: none;
+    }
+    
+    /* Form styling improvements */
+    .form-row {
+        margin-bottom: 20px;
+    }
+    
+    .form-row label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+    }
+    
+    .form-row input[type="text"],
+    .form-row input[type="email"],
+    .form-row input[type="password"] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 16px;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .checkout-container {
+            grid-template-columns: 1fr;
         }
         
         .order-summary {
-            background-color: #f9f9f9;
-            padding: 20px;
-            border-radius: 8px;
-        }
-        
-        .order-items {
-            list-style: none;
-            padding: 0;
-            margin: 0 0 20px 0;
-        }
-        
-        .order-items li {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .order-total {
-            display: flex;
-            justify-content: space-between;
-            font-weight: bold;
-            font-size: 1.2em;
-            margin-top: 20px;
-            padding-top: 10px;
-            border-top: 2px solid #ddd;
+            order: 1;
         }
         
         .payment-form {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            order: 2;
         }
-        
-        .payment-form h2 {
-            margin-top: 0;
-        }
-        
-        .form-row {
-            margin-bottom: 20px;
-        }
-        
-        .form-row label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        
-        .form-row input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        
-        .payment-methods {
-            margin-bottom: 20px;
-        }
-        
-        .payment-method {
-            margin-bottom: 10px;
-        }
-        
-        .payment-instructions {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #f0f8ff;
-            border-radius: 4px;
-            border-left: 4px solid #2196F3;
-        }
-        
-        .payment-error {
-            color: #d32f2f;
-            background-color: #ffebee;
-            padding: 10px;
-            margin-bottom: 20px;
-            border-radius: 4px;
-        }
-        
-        .checkout-navigation {
-            display: flex;
-            justify-content: space-between;
-            margin: 25px 0;
-            gap: 15px; /* Ensures space between buttons */
-        }
-
-        /* Style both buttons consistently */
-        .button {
-            padding: 10px 20px;
-            border-radius: 4px;
-            text-decoration: none;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            border: none;
-            cursor: pointer;
-            color: white; /* White text for both buttons */
-        }
-
-        /* Back to Cart button styling - now green like Continue Shopping */
-        .back-button {
-            background-color: #4caf50; /* Green background */
-            color: white;
-        }
-
-        .back-button:hover {
-            background-color: #388e3c; /* Darker green on hover */
-        }
-
-        /* Continue Shopping button styling - same as Back to Cart */
-        .continue-button {
-            background-color: #4caf50; /* Green background */
-            color: white;
-        }
-
-        .continue-button:hover {
-            background-color: #388e3c; /* Darker green on hover */
-        }
-
-        .payment-options {
-            margin-bottom: 20px;
-        }
-
-        .payment-option {
-            margin-bottom: 15px;
-            padding: 15px;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
-        }
-
-        .payment-option input[type="radio"] {
-            margin-right: 10px;
-        }
-
-        .payment-option label {
-            font-weight: bold;
-        }
-
-        .payment-details {
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 4px;
-        }
-
-        .payment-instructions {
-            white-space: pre-line;
-        }
-
-        #card-element {
-            padding: 10px;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
-            background-color: white;
-        }
-
-        #card-errors {
-            color: #d32f2f;
-            margin-top: 10px;
-            font-size: 0.9em;
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <div class="header-content">
-            <div class="logo">
-                <a href="index.php"><?php echo SHOP_NAME; ?></a>
-                <?php if (!empty(SHOP_LOGO)): ?>
-                    <img src="<?php echo htmlspecialchars(SHOP_LOGO); ?>" alt="<?php echo htmlspecialchars(SHOP_NAME); ?>" class="shop-logo">
-                <?php endif; ?>
-            </div>
-            <nav>
-                <a href="index.php">Products</a>
-                <a href="cart.php">Cart</a>
-            </nav>
-        </div>
-    </header>
+    }
     
-    <main>
-        <div class="container">
-            <h1>Checkout</h1>
-            <div class="checkout-navigation">
-                <a href="cart.php" class="button back-button">← Back to Cart</a>
-                <a href="index.php" class="button continue-button">Continue Shopping</a>
+    .checkout-navigation {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 30px;
+        gap: 15px;
+    }
+    
+    /* Direct color values instead of CSS variables */
+    .checkout-navigation .button {
+        display: inline-block;
+        padding: 12px 20px;
+        font-size: 16px;
+        font-weight: 600;
+        text-decoration: none;
+        text-align: center;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 160px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: none;
+        background-color: #4CAF50 !important; /* Direct green color */
+        color: white !important; /* White text */
+    }
+    
+    .checkout-navigation .button:hover {
+        background-color: #388E3C !important; /* Darker green on hover */
+        text-decoration: none;
+    }
+    
+    /* Optional: Add a back arrow icon to the back button */
+    .back-button::before {
+        content: "← ";
+        display: inline-block;
+        margin-right: 3px;
+    }
+    
+    @media (max-width: 600px) {
+        .checkout-navigation {
+            flex-direction: column;
+        }
+    }
+
+    /* Make the Place Order button match the navigation buttons */
+    button.button.primary {
+        display: inline-block;
+        padding: 12px 20px;
+        font-size: 16px;
+        font-weight: 600;
+        text-decoration: none;
+        text-align: center;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 160px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: none;
+        background-color: #4CAF50 !important; /* Direct green color */
+        color: white !important; /* White text */
+        margin-top: 20px;
+        width: 100%; /* Make it full width */
+    }
+    
+    button.button.primary:hover {
+        background-color: #388E3C !important; /* Darker green on hover */
+    }
+</style>
+    
+<main>
+    <div class="container">
+        <h1>Checkout</h1>
+        <div class="checkout-navigation">
+            <a href="cart.php" class="button back-button">← Back to Cart</a>
+            <a href="index.php" class="button continue-button">Continue Shopping</a>
+        </div>
+        
+        <?php if ($payment_error): ?>
+            <div class="payment-error">
+                <?php echo $payment_error; ?>
+            </div>
+        <?php endif; ?>
+        
+        <div class="checkout-container">
+            <div class="order-summary">
+                <h2>Order Summary</h2>
+                <ul class="order-items">
+                    <?php foreach ($cart_items as $item) : ?>
+                    <li>
+                        <span class="item-name"><?php echo $item['name']; ?> <span class="item-quantity">× <?php echo $item['quantity']; ?></span></span>
+                        <span class="item-price">&pound;<?php echo number_format($item['price'] * $item['quantity'], 2); ?></span>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
+                <div class="order-total">
+                    <span>Total:</span>
+                    <span>&pound;<?php echo number_format($cart_total, 2); ?></span>
+                </div>
             </div>
             
-            <?php if ($payment_error): ?>
-                <div class="payment-error">
-                    <?php echo $payment_error; ?>
-                </div>
-            <?php endif; ?>
-            
-            <div class="checkout-container">
-                <div class="order-summary">
-                    <h2>Order Summary</h2>
-                    <ul class="order-items">
-                        <?php foreach ($cart_items as $item) : ?>
-                        <li>
-                            <span class="item-name"><?php echo $item['name']; ?> <span class="item-quantity">× <?php echo $item['quantity']; ?></span></span>
-                            <span class="item-price">&pound;<?php echo number_format($item['price'] * $item['quantity'], 2); ?></span>
-                        </li>
-                        <?php endforeach; ?>
-                    </ul>
-                    <div class="order-total">
-                        <span>Total:</span>
-                        <span>&pound;<?php echo number_format($cart_total, 2); ?></span>
-                    </div>
-                </div>
+            <div class="payment-form">
+                <h2>Payment Details</h2>
                 
-                <div class="payment-form">
-                    <h2>Payment Details</h2>
+                <form method="post" action="" id="checkout-form">
+                    <div class="form-row">
+                        <label for="name">Name</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
                     
-                    <form method="post" action="" id="checkout-form">
-                        <div class="form-row">
-                            <label for="name">Name</label>
-                            <input type="text" id="name" name="name" required>
-                        </div>
-                        
-                        <div class="form-row">
-                            <label for="email">Email</label>
-                            <input type="email" id="email" name="email" required>
-                        </div>
-                        
-                        <?php if (PAYMENT_PROVIDER === 'manual'): ?>
+                    <div class="form-row">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    
+                    <?php if (isset($settings['enable_manual_payment']) && $settings['enable_manual_payment'] == '1'): ?>
+                        <!-- Manual payment instructions -->
+                        <div class="manual-payment-info">
+                            <h3>Manual Payment Instructions</h3>
                             <div class="payment-instructions">
-                                <h3>Instructions for Payment</h3>
-                                <p><?php echo PAYMENT_INSTRUCTIONS; ?></p>
+                                <?php echo nl2br(htmlspecialchars($settings['payment_instructions'] ?? 'Please contact the shop for payment instructions.')); ?>
                             </div>
-                        <?php elseif (PAYMENT_PROVIDER === 'bank_transfer'): ?>
-                            <div class="payment-instructions">
-                                <h3>Bank Transfer Details</h3>
-                                <p><?php echo BANK_DETAILS; ?></p>
-                                <p>Please include your order number as the payment reference.</p>
-                            </div>
-                        <?php endif; ?>
+                        </div>
+                    <?php elseif (isset($settings['payment_provider']) && $settings['payment_provider'] === 'bank_transfer'): ?>
+                        <div class="payment-instructions">
+                            <h3>Bank Transfer Details</h3>
+                            <p><?php echo BANK_DETAILS; ?></p>
+                            <p>Please include your order number as the payment reference.</p>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <div id="payment-section">
+                        <h2>Payment Method</h2>
                         
-                        <div id="payment-section">
-                            <h2>Payment Method</h2>
-                            
-                            <div class="payment-options">
-                                <?php if (ENABLE_MANUAL_PAYMENT): ?>
-                                <div class="payment-option">
-                                    <input type="radio" id="payment-manual" name="payment_method" value="manual" checked>
-                                    <label for="payment-manual">Honor Box Cash Payment</label>
-                                    
-                                    <div class="payment-details" id="manual-payment-details">
-                                        <div class="payment-instructions">
-                                            <?php echo nl2br(htmlspecialchars(PAYMENT_INSTRUCTIONS)); ?>
-                                        </div>
-                                    </div>
-                                </div>
-                                <?php endif; ?>
+                        <div class="payment-options">
+                            <?php if (isset($settings['enable_manual_payment']) && $settings['enable_manual_payment'] == '1'): ?>
+                            <div class="payment-option">
+                                <input type="radio" id="payment-manual" name="payment_method" value="manual" checked>
+                                <label for="payment-manual">Honor Box Cash Payment</label>
                                 
-                                <?php if (ENABLE_STRIPE_PAYMENT && !empty(STRIPE_PUBLIC_KEY)): ?>
-                                <div class="payment-option">
-                                    <input type="radio" id="payment-stripe" name="payment_method" value="stripe" <?php echo !ENABLE_MANUAL_PAYMENT ? 'checked' : ''; ?>>
-                                    <label for="payment-stripe">Pay Online with Card</label>
-                                    
-                                    <div class="payment-details" id="stripe-payment-details">
-                                        <div id="stripe-payment-form">
-                                            <!-- Stripe Elements placeholder -->
-                                            <div id="card-element"></div>
-                                            <div id="card-errors" role="alert"></div>
-                                        </div>
+                                <div class="payment-details" id="manual-payment-details">
+                                    <div class="payment-instructions">
+                                        <?php echo nl2br(htmlspecialchars($settings['payment_instructions'] ?? '')); ?>
                                     </div>
                                 </div>
-                                <?php endif; ?>
-                                
-                                <?php if (ENABLE_PAYPAL_PAYMENT && !empty(PAYPAL_CLIENT_ID)): ?>
-                                <div class="payment-option">
-                                    <input type="radio" id="payment-paypal" name="payment_method" value="paypal" <?php echo (!ENABLE_MANUAL_PAYMENT && !ENABLE_STRIPE_PAYMENT) ? 'checked' : ''; ?>>
-                                    <label for="payment-paypal">Pay with PayPal</label>
-                                    
-                                    <div class="payment-details" id="paypal-payment-details">
-                                        <div id="paypal-button-container"></div>
-                                    </div>
-                                </div>
-                                <?php endif; ?>
-                                
-                                <?php if (!empty($current_settings['enable_woo_funds']) && $current_settings['enable_woo_funds'] === '1'): ?>
-                                <div class="payment-option">
-                                    <input type="radio" id="payment-woo-funds" name="payment_method" value="woo_funds" <?php echo (!ENABLE_MANUAL_PAYMENT && !ENABLE_STRIPE_PAYMENT && !ENABLE_PAYPAL_PAYMENT && !ENABLE_APPLE_PAY_PAYMENT) ? 'checked' : ''; ?>>
-                                    <label for="payment-woo-funds">Pay with Account Credit</label>
-                                    
-                                    <div class="payment-details" id="woo-funds-payment-details">
-                                        <div id="woo-funds-form">
-                                            <p>Use the credit from your MiddleWorld Farms account to pay for this order.</p>
-                                            <div class="form-row">
-                                                <label for="woo-funds-email">Confirm Your Account Email:</label>
-                                                <input type="email" id="woo-funds-email" name="woo_funds_email" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <?php endif; ?>
-                                
-                                <?php if (!empty($current_settings['enable_gocardless']) && $current_settings['enable_gocardless'] === '1'): ?>
-                                <div class="payment-option">
-                                    <input type="radio" id="payment-gocardless" name="payment_method" value="gocardless">
-                                    <label for="payment-gocardless">Pay with Direct Debit (GoCardless)</label>
-                                    
-                                    <div class="payment-details" id="gocardless-payment-details">
-                                        <p>Set up a Direct Debit payment with GoCardless. This is ideal for recurring purchases.</p>
-                                        <div class="gocardless-info">
-                                            <img src="assets/img/direct-debit.png" alt="Direct Debit" class="payment-logo" style="height: 40px;">
-                                            <ul>
-                                                <li>Safe and secure - protected by the Direct Debit Guarantee</li>
-                                                <li>Simple setup process - takes just a minute</li>
-                                                <li>Easily manage all your payments in one place</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                                <?php endif; ?>
                             </div>
+                            <?php endif; ?>
                             
-                            <?php if (!ENABLE_MANUAL_PAYMENT && !ENABLE_STRIPE_PAYMENT && !ENABLE_PAYPAL_PAYMENT): ?>
-                            <div class="payment-error">
-                                No payment methods are currently available. Please contact the shop administrator.
+                            <?php if (isset($settings['enable_stripe']) && $settings['enable_stripe'] == '1' && !empty($stripe_publishable_key)): ?>
+                            <div class="payment-option">
+                                <input type="radio" id="payment-stripe" name="payment_method" value="stripe" 
+                                    <?php echo !(isset($settings['enable_manual_payment']) && $settings['enable_manual_payment'] == '1') ? 'checked' : ''; ?>>
+                                <label for="payment-stripe">Pay Online with Card</label>
+                                
+                                <div class="payment-details" id="stripe-payment-details">
+                                    <div id="stripe-payment-form">
+                                        <!-- Stripe Elements placeholder -->
+                                        <div id="card-element"></div>
+                                        <div id="card-errors" role="alert"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+                            
+                            <?php if (isset($settings['enable_paypal']) && $settings['enable_paypal'] == '1' && !empty($paypal_client_id)): ?>
+                            <div class="payment-option">
+                                <input type="radio" id="payment-paypal" name="payment_method" value="paypal"
+                                    <?php echo !(isset($settings['enable_manual_payment']) && $settings['enable_manual_payment'] == '1') && 
+                                        !(isset($settings['enable_stripe']) && $settings['enable_stripe'] == '1') ? 'checked' : ''; ?>>
+                                <label for="payment-paypal">Pay with PayPal</label>
+                                
+                                <div class="payment-details" id="paypal-payment-details">
+                                    <div id="paypal-button-container"></div>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+                            
+                            <?php if (isset($settings['enable_woo_funds']) && $settings['enable_woo_funds'] == '1'): ?>
+                            <div class="payment-option">
+                                <input type="radio" id="payment-woo-funds" name="payment_method" value="woo_funds"
+                                    <?php echo !(isset($settings['enable_manual_payment']) && $settings['enable_manual_payment'] == '1') && 
+                                        !(isset($settings['enable_stripe']) && $settings['enable_stripe'] == '1') &&
+                                        !(isset($settings['enable_paypal']) && $settings['enable_paypal'] == '1') ? 'checked' : ''; ?>>
+                                <label for="payment-woo-funds">Pay with Account Credit</label>
+                                
+                                <div class="payment-details" id="woo-funds-payment-details">
+                                    <div id="woo-funds-form">
+                                        <p>Use the credit from your account to pay for this order.</p>
+                                        <div class="form-row">
+                                            <label for="woo-funds-email">Your Account Email:</label>
+                                            <input type="email" id="woo-funds-email" name="woo_funds_email" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
+                                        </div>
+                                        <div class="form-row">
+                                            <label for="woo-funds-password">Account Password:</label>
+                                            <input type="password" id="woo-funds-password" name="woo_funds_password">
+                                            <small><a href="<?php echo htmlspecialchars($settings['woo_shop_url'] ?? '', ENT_QUOTES); ?>/my-account/lost-password/" target="_blank">Forgot password?</a></small>
+                                        </div>
+                                        <div class="form-row" style="margin-top: 15px;">
+                                            <a href="<?php echo htmlspecialchars($settings['woo_shop_url'] ?? '', ENT_QUOTES); ?>/my-account/" target="_blank" class="button secondary">Log in to your account</a>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <?php endif; ?>
                         </div>
                         
-                        <input type="hidden" name="paypal_order_id" id="paypal_order_id" value="">
-                        
-                        <button type="submit" name="place_order" class="button primary">Place Order</button>
-                    </form>
-                </div>
+                        <?php 
+                        $manual_enabled = isset($settings['enable_manual_payment']) && $settings['enable_manual_payment'] == '1';
+                        $stripe_enabled = isset($settings['enable_stripe']) && $settings['enable_stripe'] == '1';
+                        $paypal_enabled = isset($settings['enable_paypal']) && $settings['enable_paypal'] == '1';
+                        $gocardless_enabled = isset($settings['enable_gocardless']) && $settings['enable_gocardless'] == '1';
+                        $woo_funds_enabled = isset($settings['enable_woo_funds']) && $settings['enable_woo_funds'] == '1';
+
+                        if (!$manual_enabled && !$stripe_enabled && !$paypal_enabled && !$gocardless_enabled && !$woo_funds_enabled): 
+                        ?>
+                        <div class="payment-error">
+                            No payment methods are currently available. Please contact the shop administrator.
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <input type="hidden" name="paypal_order_id" id="paypal_order_id" value="">
+                    
+                    <button type="submit" name="place_order" class="button primary">Place Order</button>
+                </form>
             </div>
         </div>
-    </main>
+    </div>
+</main>
+
+<?php require_once 'includes/footer.php'; ?>
+
+<!-- Add Stripe JS only if Stripe payments are enabled -->
+<?php if (isset($settings['enable_stripe']) && $settings['enable_stripe'] == '1' && !empty($stripe_publishable_key)): ?>
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+    var stripe = Stripe('<?php echo htmlspecialchars($stripe_publishable_key); ?>');
+    var elements = stripe.elements();
     
-    <footer>
-        <div class="container">
-            <p>&copy; <?php echo date('Y'); ?> <?php echo SHOP_NAME; ?>. All rights reserved.</p>
-        </div>
-    </footer>
+    // Create card Element and mount it
+    var card = elements.create('card');
+    card.mount('#card-element');
     
-    <!-- Add Stripe JS only if Stripe payments are enabled -->
-    <?php if (ENABLE_STRIPE_PAYMENT && !empty(STRIPE_PUBLIC_KEY)): ?>
-    <script src="https://js.stripe.com/v3/"></script>
-    <script>
-        // Initialize Stripe
-        var stripe = Stripe('<?php echo htmlspecialchars(STRIPE_PUBLIC_KEY); ?>');
-        var elements = stripe.elements();
-        
-        // Create card Element and mount it
-        var card = elements.create('card');
-        card.mount('#card-element');
-        
-        // Handle real-time validation errors
-        card.on('change', function(event) {
-            var displayError = document.getElementById('card-errors');
-            if (event.error) {
-                displayError.textContent = event.error.message;
-            } else {
-                displayError.textContent = '';
-            }
-        });
-    </script>
-    <?php endif; ?>
-    
-    <!-- Add PayPal JS only if PayPal is enabled -->
-    <?php if (ENABLE_PAYPAL_PAYMENT && !empty(PAYPAL_CLIENT_ID)): ?>
-    <script src="https://www.paypal.com/sdk/js?client-id=<?php echo htmlspecialchars(PAYPAL_CLIENT_ID); ?>&currency=GBP"></script>
-    <script>
-        paypal.Buttons({
-            // Set up the transaction
-            createOrder: function(data, actions) {
-                return actions.order.create({
-                    purchase_units: [{
-                        amount: {
-                            value: '<?php echo number_format($cart_total, 2, '.', ''); ?>'
-                        }
-                    }]
-                });
-            },
-            
-            // Finalize the transaction
-            onApprove: function(data, actions) {
-                return actions.order.capture().then(function(orderData) {
-                    // Successful capture! Set hidden field with PayPal info
-                    document.getElementById('paypal_order_id').value = orderData.id;
-                    
-                    // Submit the form to complete the order
-                    document.getElementById('checkout-form').submit();
-                });
-            }
-        }).render('#paypal-button-container');
-    </script>
-    <?php endif; ?>
-    
-    <script>
-    // Show/hide payment details based on selected method
-    document.addEventListener('DOMContentLoaded', function() {
-        const manualRadio = document.getElementById('payment-manual');
-        const stripeRadio = document.getElementById('payment-stripe');
-        const paypalRadio = document.getElementById('payment-paypal');
-        const wooFundsRadio = document.getElementById('payment-woo-funds');
-        const gocardlessRadio = document.getElementById('payment-gocardless');
-        const manualDetails = document.getElementById('manual-payment-details');
-        const stripeDetails = document.getElementById('stripe-payment-details');
-        const paypalDetails = document.getElementById('paypal-payment-details');
-        const wooFundsDetails = document.getElementById('woo-funds-payment-details');
-        const gocardlessDetails = document.getElementById('gocardless-payment-details');
-        
-        function updatePaymentDetails() {
-            if (manualRadio) {
-                manualDetails.style.display = manualRadio.checked ? 'block' : 'none';
-            }
-            if (stripeRadio) {
-                stripeDetails.style.display = stripeRadio.checked ? 'block' : 'none';
-            }
-            if (paypalRadio) {
-                paypalDetails.style.display = paypalRadio.checked ? 'block' : 'none';
-            }
-            if (wooFundsRadio) {
-                wooFundsDetails.style.display = wooFundsRadio.checked ? 'block' : 'none';
-            }
-            if (gocardlessRadio) {
-                gocardlessDetails.style.display = gocardlessRadio.checked ? 'block' : 'none';
-            }
+    // Handle real-time validation errors
+    card.on('change', function(event) {
+        var displayError = document.getElementById('card-errors');
+        if (event.error) {
+            displayError.textContent = event.error.message;
+        } else {
+            displayError.textContent = '';
         }
+    });
+</script>
+<?php endif; ?>
+
+<!-- Add PayPal JS only if PayPal is enabled -->
+<?php if (isset($settings['enable_paypal']) && $settings['enable_paypal'] == '1' && !empty($paypal_client_id)): ?>
+<script src="https://www.paypal.com/sdk/js?client-id=<?php echo htmlspecialchars($paypal_client_id); ?>&currency=GBP"></script>
+<script>
+    paypal.Buttons({
+        // Set up the transaction
+        createOrder: function(data, actions) {
+            return actions.order.create({
+                purchase_units: [{
+                    amount: {
+                        value: '<?php echo number_format($cart_total, 2, '.', ''); ?>'
+                    }
+                }]
+            });
+        },
         
-        if (manualRadio) manualRadio.addEventListener('change', updatePaymentDetails);
-        if (stripeRadio) stripeRadio.addEventListener('change', updatePaymentDetails);
-        if (paypalRadio) paypalRadio.addEventListener('change', updatePaymentDetails);
-        if (wooFundsRadio) wooFundsRadio.addEventListener('change', updatePaymentDetails);
-        if (gocardlessRadio) gocardlessRadio.addEventListener('change', updatePaymentDetails);
-        
-        // Initialize
-        updatePaymentDetails();
-        
-        // Ensure woo-funds email matches customer email field
-        const customerEmailField = document.getElementById('email');
-        const wooFundsEmailField = document.getElementById('woo-funds-email');
-        
-        if (customerEmailField && wooFundsEmailField) {
-            customerEmailField.addEventListener('input', function() {
-                wooFundsEmailField.value = this.value;
+        // Finalize the transaction
+        onApprove: function(data, actions) {
+            return actions.order.capture().then(function(orderData) {
+                // Successful capture! Set hidden field with PayPal info
+                document.getElementById('paypal_order_id').value = orderData.id;
+                
+                // Submit the form to complete the order
+                document.getElementById('checkout-form').submit();
             });
         }
-        
-        // Form validation for WooCommerce Funds
-        document.getElementById('checkout-form').addEventListener('submit', function(e) {
-            if (wooFundsRadio && wooFundsRadio.checked) {
-                const wooFundsEmail = document.getElementById('woo-funds-email').value;
-                if (!wooFundsEmail) {
-                    e.preventDefault();
-                    alert('Please enter your account email address.');
-                    return false;
-                }
-            }
+    }).render('#paypal-button-container');
+</script>
+<?php endif; ?>
+
+<script>
+// Show/hide payment details based on selected method
+document.addEventListener('DOMContentLoaded', function() {
+    const manualRadio = document.getElementById('payment-manual');
+    const stripeRadio = document.getElementById('payment-stripe');
+    const paypalRadio = document.getElementById('payment-paypal');
+    const wooFundsRadio = document.getElementById('payment-woo-funds');
+    const gocardlessRadio = document.getElementById('payment-gocardless');
+    const manualDetails = document.getElementById('manual-payment-details');
+    const stripeDetails = document.getElementById('stripe-payment-details');
+    const paypalDetails = document.getElementById('paypal-payment-details');
+    const wooFundsDetails = document.getElementById('woo-funds-payment-details');
+    const gocardlessDetails = document.getElementById('gocardless-payment-details');
+    
+    function updatePaymentDetails() {
+        if (manualRadio) {
+            manualDetails.style.display = manualRadio.checked ? 'block' : 'none';
+        }
+        if (stripeRadio) {
+            stripeDetails.style.display = stripeRadio.checked ? 'block' : 'none';
+        }
+        if (paypalRadio) {
+            paypalDetails.style.display = paypalRadio.checked ? 'block' : 'none';
+        }
+        if (wooFundsRadio) {
+            wooFundsDetails.style.display = wooFundsRadio.checked ? 'block' : 'none';
+        }
+        if (gocardlessRadio) {
+            gocardlessDetails.style.display = gocardlessRadio.checked ? 'block' : 'none';
+        }
+    }
+    
+    if (manualRadio) manualRadio.addEventListener('change', updatePaymentDetails);
+    if (stripeRadio) stripeRadio.addEventListener('change', updatePaymentDetails);
+    if (paypalRadio) paypalRadio.addEventListener('change', updatePaymentDetails);
+    if (wooFundsRadio) wooFundsRadio.addEventListener('change', updatePaymentDetails);
+    if (gocardlessRadio) gocardlessRadio.addEventListener('change', updatePaymentDetails);
+    
+    // Initialize
+    updatePaymentDetails();
+    
+    // Ensure woo-funds email matches customer email field
+    const customerEmailField = document.getElementById('email');
+    const wooFundsEmailField = document.getElementById('woo-funds-email');
+    
+    if (customerEmailField && wooFundsEmailField) {
+        customerEmailField.addEventListener('input', function() {
+            wooFundsEmailField.value = this.value;
         });
+    }
+    
+    // Form validation for WooCommerce Funds
+    document.getElementById('checkout-form').addEventListener('submit', function(e) {
+        if (wooFundsRadio && wooFundsRadio.checked) {
+            const wooFundsEmail = document.getElementById('woo-funds-email').value;
+            if (!wooFundsEmail) {
+                e.preventDefault();
+                alert('Please enter your account email address.');
+                return false;
+            }
+        }
     });
-    </script>
+});
+</script>
 </body>
 </html>

@@ -43,37 +43,46 @@ $current_file = basename($_SERVER['PHP_SELF']);
         .admin-header {
             background: <?php echo $primary; ?>;
             color: #fff;
-            padding: 10px 0 6px 0;
+            padding: 0; /* Remove all padding */
             border-bottom: 4px solid <?php echo $secondary; ?>;
         }
+        
         .admin-header-inner {
-            display: flex;
+            display: grid;
+            grid-template-columns: 160px 1fr 160px;
             align-items: center;
-            justify-content: space-between;
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0 24px;
+            padding: 0 24px 8px; /* Add bottom padding instead of top */
+        }
+        
+        .admin-header-logo {
+            justify-self: start;
         }
         .admin-header-logo img {
             max-height: 96px;
+            max-width: 150px;
+            width: auto;
+            height: auto;
             margin-bottom: 0;
-            margin-top: -32px;
+            margin-top: -48px; /* Push up even more */
             display: block;
             position: relative;
             z-index: 2;
         }
         .admin-header-title {
-            flex: 1;
+            justify-self: center;
             text-align: center;
-            font-size: 1.3rem;
+            font-size: 2rem; /* Increased from 1.3rem */
             margin: 0;
             letter-spacing: 1px;
             font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2); /* Optional: adds a subtle shadow for better readability */
         }
         .admin-navbar {
             display: flex;
             gap: 18px;
-            padding: 10px 24px;
+            padding: 12px 24px 10px; /* Adjust the navbar to balance the layout */
             background: <?php echo $primary; ?>;
             color: #fff;
             justify-content: center;
