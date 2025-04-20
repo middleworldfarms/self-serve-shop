@@ -69,17 +69,34 @@ function get_available_products() {
  * Get details for a specific product by ID
  */
 function get_product_details($product_id) {
+    // Create a new database connection inside the function
     try {
-        $prefix = TABLE_PREFIX;
-        $posts_table = $prefix . 'posts';
-        $postmeta_table = $prefix . 'postmeta';
-        
         $db = new PDO(
             'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME, 
             DB_USER, 
             DB_PASS
         );
         $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+        // First try the standalone DB table
+        $stmt = $db->prepare("SELECT * FROM sss_products WHERE id = ?");
+        $stmt->execute([$product_id]);
+        $product = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($product) {
+            // Format the product details
+            return [
+                'id' => $product['id'],
+                'name' => $product['name'],
+                'price' => floatval($product['price']),
+                'image' => $product['image'] ? $product['image'] : 'https://middleworldfarms.org/wp-content/uploads/2024/12/cropped-cropped-Middle-World-Logo-Image-Green-PNG-FOR-SCREENS.png'
+            ];
+        }
+
+        // If not found in standalone table, fallback to WooCommerce
+        $prefix = TABLE_PREFIX;
+        $posts_table = $prefix . 'posts';
+        $postmeta_table = $prefix . 'postmeta';
 
         $stmt = $db->prepare("
             SELECT 

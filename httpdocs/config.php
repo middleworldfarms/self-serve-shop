@@ -128,3 +128,14 @@ function get_settings() {
         return [];
     }
 }
+
+/**
+ * Get a specific setting value with fallback
+ * @param string $key The setting key to retrieve
+ * @param mixed $default Default value if setting doesn't exist
+ * @return mixed The setting value or default
+ */
+function get_setting($key, $default = null) {
+    $settings = get_settings();
+    return isset($settings[$key]) ? $settings[$key] : $default;
+}
