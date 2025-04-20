@@ -41,7 +41,7 @@ require_once 'includes/get_products.php';
 ?>
 
 <main>
-    <div class="container">
+    <div class="container" style="margin-left: 100px; margin-right: 100px;">
         <h1>Your Cart</h1>
         
         <?php if (empty($_SESSION['cart'])): ?>
