@@ -1,6 +1,5 @@
 <?php
 require_once 'config.php';
-require_once 'includes/header.php';
 
 // Initialize cart if not exists
 if (!isset($_SESSION['cart'])) {
@@ -16,7 +15,15 @@ if (isset($_POST['add_to_cart']) && isset($_POST['product_id'])) {
     } else {
         $_SESSION['cart'][$product_id] = $quantity;
     }
+    
+    // Redirect to the same page (or to a specific page)
+    // This creates a GET request in the browser history instead of a POST request
+    header('Location: ' . $_SERVER['PHP_SELF'] . (isset($_GET['category']) ? '?category=' . urlencode($_GET['category']) : ''));
+    exit;
 }
+
+// Include header AFTER cart has been updated
+require_once 'includes/header.php';
 
 // Get products directly from database
 function get_direct_products() {

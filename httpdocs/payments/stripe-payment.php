@@ -10,7 +10,7 @@ function processStripePayment($order_id, $amount, $payment_intent_id) {
     $stripe_secret_key = $stmt->fetchColumn();
     
     // Set up Stripe
-    \Stripe\Stripe::setApiKey($stripe_secret_key);
+    $stripe = new \Stripe\StripeClient($stripe_secret_key);
     
     try {
         // Retrieve the payment intent
