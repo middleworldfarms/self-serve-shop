@@ -57,15 +57,15 @@ try {
     $stmt->execute([$start_date, $end_date]);
     $summary = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Get payment method breakdown
+    // Get payment method breakdown - handle NULL payment methods
     $stmt = $db->prepare("
         SELECT 
-            payment_method,
+            COALESCE(payment_method, 'manual') as payment_method,
             COUNT(*) as order_count,
             SUM(total_amount) as total_amount
         FROM orders
         WHERE created_at BETWEEN ? AND DATE_ADD(?, INTERVAL 1 DAY)
-        GROUP BY payment_method
+        GROUP BY COALESCE(payment_method, 'manual')
         ORDER BY SUM(total_amount) DESC
     ");
     $stmt->execute([$start_date, $end_date]);
@@ -402,6 +402,24 @@ require_once 'includes/header.php';
                 <?php endif; ?>
             </tbody>
         </table>
+        
+        <?php
+        // Debug info
+        $debug_stmt = $db->query("SELECT payment_method, COUNT(*) as count, SUM(total_amount) as total 
+                                 FROM orders GROUP BY payment_method");
+        $debug_methods = $debug_stmt->fetchAll(PDO::FETCH_ASSOC);
+        ?>
+
+        <div style="margin-bottom:20px;padding:10px;background:#f8f9fa;border:1px solid #ddd;border-radius:4px;">
+            <strong>Debug - All Payment Methods:</strong>
+            <ul style="margin:5px 0 0 0;padding-left:20px;">
+            <?php foreach($debug_methods as $method): ?>
+                <li><?php echo $method['payment_method'] === null ? 'NULL' : htmlspecialchars($method['payment_method']); ?>: 
+                    <?php echo $method['count']; ?> orders, 
+                    £<?php echo number_format($method['total'], 2); ?></li>
+            <?php endforeach; ?>
+            </ul>
+        </div>
     </div>
     
     <div class="report-section">

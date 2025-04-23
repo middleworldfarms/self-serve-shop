@@ -7,7 +7,22 @@ try {
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
     // Create orders table
-    $db->exec("CREATE TABLE IF NOT EXISTS orders (...)");
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS orders (
+            id INT(11) AUTO_INCREMENT PRIMARY KEY,
+            order_number VARCHAR(50) NOT NULL,
+            customer_name VARCHAR(100),
+            customer_email VARCHAR(100),
+            total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            payment_method VARCHAR(50),
+            payment_status VARCHAR(30) DEFAULT 'pending',
+            order_status VARCHAR(30) DEFAULT 'new',
+            order_notes TEXT,
+            items TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+    ");
     
     // Create sss_products table
     $db->exec("CREATE TABLE IF NOT EXISTS sss_products (...)");
