@@ -18,18 +18,18 @@ $page_title = 'Checkout - ' . ($settings['shop_name'] ?? 'Self-Serve Shop');
 
 // Fix all payment processing variables
 $stripe_test_mode = isset($settings['stripe_test_mode']) && $settings['stripe_test_mode'] == '1';
-$stripe_publishable_key = $stripe_test_mode ? $settings['stripe_test_publishable_key'] : $settings['stripe_publishable_key'];
-$stripe_secret_key = $stripe_test_mode ? $settings['stripe_test_secret_key'] : $settings['stripe_secret_key'];
+$stripe_publishable_key = $stripe_test_mode ? ($settings['stripe_test_publishable_key'] ?? '') : ($settings['stripe_publishable_key'] ?? '');
+$stripe_secret_key = $stripe_test_mode ? ($settings['stripe_test_secret_key'] ?? '') : ($settings['stripe_secret_key'] ?? '');
 
 // For PayPal
 $paypal_test_mode = isset($settings['paypal_test_mode']) && $settings['paypal_test_mode'] == '1';
-$paypal_client_id = $paypal_test_mode ? $settings['paypal_test_client_id'] : $settings['paypal_client_id'];
-$paypal_secret = $paypal_test_mode ? $settings['paypal_test_secret'] : $settings['paypal_secret'];
+$paypal_client_id = $paypal_test_mode ? ($settings['paypal_test_client_id'] ?? '') : ($settings['paypal_client_id'] ?? '');
+$paypal_secret = $paypal_test_mode ? ($settings['paypal_test_secret'] ?? '') : ($settings['paypal_secret'] ?? '');
 
 // For GoCardless
 $gocardless_test_mode = isset($settings['gocardless_test_mode']) && $settings['gocardless_test_mode'] == '1';
-$gocardless_access_token = $gocardless_test_mode ? $settings['gocardless_test_access_token'] : $settings['gocardless_access_token'];
-$gocardless_webhook_secret = $gocardless_test_mode ? $settings['gocardless_test_webhook_secret'] : $settings['gocardless_webhook_secret'];
+$gocardless_access_token = $gocardless_test_mode ? ($settings['gocardless_test_access_token'] ?? '') : ($settings['gocardless_access_token'] ?? '');
+$gocardless_webhook_secret = $gocardless_test_mode ? ($settings['gocardless_test_webhook_secret'] ?? '') : ($settings['gocardless_webhook_secret'] ?? '');
 
 // Handle GoCardless redirect completion
 if (isset($_GET['gocardless_complete']) && $_GET['gocardless_complete'] === '1' && isset($_SESSION['gocardless_flow_id'])) {
@@ -86,7 +86,8 @@ foreach ($_SESSION['cart'] as $product_id => $quantity) {
         'id' => $product_id,
         'name' => $product['name'],
         'price' => $product['price'],
-        'quantity' => $quantity
+        'quantity' => $quantity,
+        'image' => $product['image'] ?? null
     ];
 }
 
@@ -154,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'woo_funds',
                     [
                         'customer_email' => $_POST['woo_funds_email'],
-                        'password' => $_POST['woo_funds_password']
+                        'password' => $_POST['woo_funds_password'] // Make sure this is passed!
                     ]
                 );
                 
@@ -445,6 +446,7 @@ require_once 'includes/header.php';
                 <ul class="order-items">
                     <?php foreach ($cart_items as $item) : ?>
                     <li>
+                        <img src="<?php echo htmlspecialchars(process_image_url($item['image'])); ?>" alt="<?php echo htmlspecialchars($item['name']); ?>" class="checkout-item-image">
                         <span class="item-name"><?php echo $item['name']; ?> <span class="item-quantity">× <?php echo $item['quantity']; ?></span></span>
                         <span class="item-price">&pound;<?php echo number_format($item['price'] * $item['quantity'], 2); ?></span>
                     </li>

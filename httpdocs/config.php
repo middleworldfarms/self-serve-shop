@@ -104,6 +104,26 @@ function get_image_path($path = '') {
 }
 
 /**
+ * Process image URLs to avoid CORS issues
+ * @param string $url The original image URL
+ * @return string The processed URL (proxied if external)
+ */
+function process_image_url($url) {
+    // For null or empty URLs
+    if (empty($url)) {
+        return '/admin/uploads/Shopping bag.png';
+    }
+    
+    // Process middleworldfarms.org URLs through the image proxy
+    if (strpos($url, 'middleworldfarms.org') !== false) {
+        return '/image-proxy.php?url=' . urlencode($url);
+    }
+    
+    // Return as is for local images
+    return $url;
+}
+
+/**
  * Universal settings loader for both admin and customer
  */
 function get_settings() {

@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../autoload.php';
 require_once __DIR__ . '/../config.php';
-require_once '../includes/logger.php';
+require_once __DIR__ . '/../includes/logger.php';
 
 function processPayment($order_id, $amount, $payment_method, $payment_data = []) {
     switch ($payment_method) {
@@ -58,22 +58,38 @@ function processPayment($order_id, $amount, $payment_method, $payment_data = [])
             return $result;
             
         case 'woo_funds':
-            require_once __DIR__ . '/woo-funds-payment.php';
-            $result = processWooFundsPayment($order_id, $amount, $payment_data['customer_email']);
-            log_order_event($order_id, 'payment_completed', [
-                'method' => $payment_method,
-                'amount' => $amount,
-                'transaction_id' => $payment_data['customer_email']
-            ]);
+            require_once __DIR__ . '/../woo-funds-payment.php';
+            $result = processWooFundsPayment(
+                $order_id,
+                $amount,
+                $payment_data['customer_email'] ?? '',
+                $payment_data['password'] ?? ''
+            );
             
-            // Get order items and customer info for WooCommerce
-            $items = get_order_items($order_id);
-            $customer_info = get_order_customer($order_id);
-            
-            // Sync to WooCommerce
-            sync_to_woocommerce($order_id, $amount, $payment_method, $items, $customer_info);
-            
-            return $result;
+            if ($result['success']) {
+                log_order_event($order_id, 'payment_completed', [
+                    'method' => $payment_method,
+                    'transaction_id' => $result['transaction_id'] ?? '',
+                    'new_balance' => $result['new_balance'] ?? 0
+                ]);
+                
+                // Get order items and customer info for WooCommerce
+                $items = $_SESSION['cart_items'] ?? [];
+                $customer_info = [
+                    'email' => $payment_data['customer_email'] ?? ''
+                ];
+                
+                // Sync to WooCommerce
+                sync_to_woocommerce($order_id, $amount, $payment_method, $items, $customer_info);
+                
+                return $result;
+            } else {
+                log_order_event($order_id, 'payment_failed', [
+                    'method' => $payment_method,
+                    'error' => $result['error'] ?? 'Unknown error'
+                ]);
+                return $result;
+            }
             
         case 'gocardless':
             require_once __DIR__ . '/gocardless-payment.php';
@@ -198,11 +214,47 @@ function sync_to_woocommerce($order_id, $amount, $payment_method, $items, $custo
 
 function get_order_items($order_id) {
     global $db;
-    $stmt = $db->prepare("SELECT oi.*, p.name, p.woo_product_id FROM order_items oi 
-                          JOIN sss_products p ON oi.product_id = p.id 
-                          WHERE oi.order_id = ?");
+    
+    // Check if the cart items are stored in the session
+    if (isset($_SESSION['cart_items'])) {
+        return $_SESSION['cart_items']; 
+    }
+    
+    // If not in session, try to get from orders table directly
+    // This assumes orders table has a 'items' JSON column or similar
+    $stmt = $db->prepare("SELECT * FROM orders WHERE id = ?");
     $stmt->execute([$order_id]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $order = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($order && isset($order['items'])) {
+        // If items are stored as JSON
+        if (is_string($order['items'])) {
+            return json_decode($order['items'], true);
+        }
+        return $order['items'];
+    }
+    
+    // Fallback to cart session if we have it
+    if (isset($_SESSION['cart']) && !empty($_SESSION['cart'])) {
+        require_once __DIR__ . '/../includes/get_products.php';
+        $items = [];
+        
+        foreach ($_SESSION['cart'] as $product_id => $quantity) {
+            $product = get_product_details($product_id);
+            $items[] = [
+                'product_id' => $product_id,
+                'woo_product_id' => $product['woo_product_id'] ?? 0,
+                'name' => $product['name'],
+                'price' => $product['price'],
+                'quantity' => $quantity
+            ];
+        }
+        
+        return $items;
+    }
+    
+    // Last resort - empty array
+    return [];
 }
 
 function get_order_customer($order_id) {

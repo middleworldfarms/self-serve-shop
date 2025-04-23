@@ -714,6 +714,36 @@ h2 {
             <button type="submit" name="send_test_email">Send Test Email</button>
         </form>
     <?php endif; ?>
+
+    <h2>WooCommerce Sync</h2>
+    <form action="actions/sync-products.php" method="post" class="settings-form">
+        <div class="sync-options">
+            <h3>Sync Options</h3>
+            <p>Select which product information to update:</p>
+            
+            <div class="form-group">
+                <label><input type="checkbox" name="sync_options[]" value="names" checked> Product Names</label>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" name="sync_options[]" value="descriptions" checked> Product Descriptions</label>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" name="sync_options[]" value="prices" checked> Prices</label>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" name="sync_options[]" value="images" checked> Images</label>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" name="sync_options[]" value="status"> Status (Active/Inactive)</label>
+                <span class="help-text">Uncheck to keep your current product status settings</span>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" name="sync_options[]" value="new_products" checked> Import New Products</label>
+            </div>
+        </div>
+        
+        <button type="submit" class="button primary">Sync Products from WooCommerce</button>
+    </form>
 </div>
 
 <?php require_once 'includes/footer.php'; ?>

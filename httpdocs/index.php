@@ -59,7 +59,7 @@ $products = get_direct_products();
     <div class="product-grid">
         <?php foreach ($products as $product): ?>
         <div class="product-card" data-id="<?php echo $product['id']; ?>">
-            <img src="<?php echo $product['image']; ?>" alt="<?php echo $product['name']; ?>" class="product-image">
+            <img src="<?php echo htmlspecialchars(process_image_url($product['image'])); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="product-image">
             <div class="product-info">
                 <h3 class="product-name"><?php echo $product['name']; ?></h3>
                 <p class="product-price">

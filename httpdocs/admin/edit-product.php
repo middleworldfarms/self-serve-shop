@@ -317,7 +317,7 @@ require_once 'includes/header.php';
                         <?php if (!empty($product['image'])): ?>
                             <div>
                                 <p>Current image:</p>
-                                <img src="<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="image-preview">
+                                <img src="<?php echo htmlspecialchars(process_image_url($product['image'])); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="image-preview">
                             </div>
                         <?php endif; ?>
                         <input type="file" id="image" name="image" accept="image/*">

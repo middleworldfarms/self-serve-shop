@@ -89,7 +89,7 @@ function get_product_details($product_id) {
                 'id' => $product['id'],
                 'name' => $product['name'],
                 'price' => floatval($product['price']),
-                'image' => $product['image'] ? $product['image'] : 'https://middleworldfarms.org/wp-content/uploads/2024/12/cropped-cropped-Middle-World-Logo-Image-Green-PNG-FOR-SCREENS.png'
+                'image' => $product['image'] ? $product['image'] : process_image_url('https://middleworldfarms.org/wp-content/uploads/2024/12/cropped-cropped-Middle-World-Logo-Image-Green-PNG-FOR-SCREENS.png')
             ];
         }
 
@@ -127,7 +127,7 @@ function get_product_details($product_id) {
                 'id' => $row['ID'],
                 'name' => $row['post_title'],
                 'price' => $price,
-                'image' => $image_url ? $image_url : 'https://middleworldfarms.org/wp-content/uploads/2024/12/cropped-cropped-Middle-World-Logo-Image-Green-PNG-FOR-SCREENS.png'
+                'image' => $image_url ? $image_url : process_image_url('https://middleworldfarms.org/wp-content/uploads/2024/12/cropped-cropped-Middle-World-Logo-Image-Green-PNG-FOR-SCREENS.png')
             ];
         }
         
@@ -136,7 +136,7 @@ function get_product_details($product_id) {
             'id' => $product_id,
             'name' => 'Product Not Found',
             'price' => 0,
-            'image' => 'https://middleworldfarms.org/wp-content/uploads/2024/12/cropped-cropped-Middle-World-Logo-Image-Green-PNG-FOR-SCREENS.png'
+            'image' => process_image_url('https://middleworldfarms.org/wp-content/uploads/2024/12/cropped-cropped-Middle-World-Logo-Image-Green-PNG-FOR-SCREENS.png')
         ];
     } catch (PDOException $e) {
         error_log("Database error in get_product_details: " . $e->getMessage());
@@ -146,7 +146,7 @@ function get_product_details($product_id) {
             'id' => $product_id,
             'name' => 'Product Not Found',
             'price' => 0,
-            'image' => 'https://middleworldfarms.org/wp-content/uploads/2024/12/cropped-cropped-Middle-World-Logo-Image-Green-PNG-FOR-SCREENS.png'
+            'image' => process_image_url('https://middleworldfarms.org/wp-content/uploads/2024/12/cropped-cropped-Middle-World-Logo-Image-Green-PNG-FOR-SCREENS.png')
         ];
     }
 }

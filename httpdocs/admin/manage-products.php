@@ -18,6 +18,10 @@ try {
     die("Database connection failed: " . $e->getMessage());
 }
 
+// Add this setting with value '1' to preserve status by default
+$stmt = $db->prepare("INSERT IGNORE INTO self_serve_settings (setting_name, setting_value) VALUES (?, ?)");
+$stmt->execute(['sync_preserve_status', '1']);
+
 // Admin authentication
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: index.php');
@@ -59,11 +63,11 @@ require_once 'includes/header.php';
 }
 .admin-layout {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;  /* Change from flex-wrap: wrap */
     gap: 24px;
 }
 .sidebar {
-    flex: 0 0 260px;
+    flex: 0 0 30%;  /* Change from 40% to 30% */
     background: #f8f8f8;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
@@ -126,6 +130,12 @@ require_once 'includes/header.php';
     background: #f4f4f4;
     font-weight: bold;
 }
+
+/* Change from center to left alignment */
+th.actions-header {
+    text-align: left;
+}
+
 .product-image {
     width: 60px;
     height: 60px;
@@ -164,6 +174,26 @@ require_once 'includes/header.php';
 .delete-button:hover {
     background: #a32121;
 }
+.edit-button, .delete-button {
+    min-width: 65px;  /* Slightly smaller width */
+    text-align: center;
+    display: inline-block;
+    box-sizing: border-box;
+}
+
+/* Add this new style for the actions column */
+td.actions {
+    text-align: center;  /* Center everything in the actions cell */
+    padding-right: 10px; /* Add right padding to offset buttons */
+}
+
+/* And update the form styling */
+td.actions form {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;  /* Add small margin for spacing */
+}
+
 .success-message, .error-message {
     margin: 18px 0;
     padding: 12px 18px;
@@ -180,8 +210,40 @@ require_once 'includes/header.php';
 @media (max-width: 900px) {
     .admin-container { margin: 20px 10px; }
     .admin-layout { flex-direction: column; }
-    .sidebar { width: 100%; margin-bottom: 18px; }
+    .sidebar { width: 100%; flex: none; margin-bottom: 18px; }  /* Add flex: none */
     .main-content { padding: 10px; }
+}
+.bulk-actions-container {
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+}
+
+.bulk-actions-container h3 {
+    font-size: 1.1em;
+    margin-bottom: 10px;
+    color: #388E3C;
+}
+
+.bulk-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.bulk-action-select {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+}
+
+.select-all-container {
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 </style>
 
@@ -220,7 +282,26 @@ if (isset($_POST['import_woocommerce'])) {
                 $regular_price = $product['regular_price'];
                 $sale_price = $product['sale_price'];
                 $image = !empty($product['images']) ? $product['images'][0]['src'] : '';
-                $status = ($product['status'] === 'publish') ? 'active' : 'inactive';
+                
+                // Check if we should preserve existing status
+                $preserve_status = empty($settings['sync_preserve_status']) ? true : ($settings['sync_preserve_status'] == '1');
+                if ($preserve_status) {
+                    // Check if product already exists to keep its status
+                    $check_stmt = $db->prepare("SELECT id, status FROM sss_products WHERE name = ?");
+                    $check_stmt->execute([$name]);
+                    $existing = $check_stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($existing) {
+                        // Keep existing status for existing products
+                        $status = $existing['status'];
+                    } else {
+                        // Default for new products
+                        $status = 'inactive'; // Conservative default
+                    }
+                } else {
+                    // Update status based on WooCommerce
+                    $status = ($product['status'] === 'publish') ? 'active' : 'inactive';
+                }
 
                 // Insert or update by name
                 $stmt = $db->prepare("SELECT id FROM sss_products WHERE name = ?");
@@ -415,37 +496,14 @@ try {
     <?php endif; ?>
 
     <div class="admin-layout">
-        <form method="post" action="" id="bulk-form" enctype="multipart/form-data">
-            <!-- Sidebar with tools -->
-            <div class="sidebar">
-                <a href="add-product.php" class="button add-product-button">+ Add New Product</a>
-                
-                <!-- Bulk actions now in sidebar -->
-                <div class="sidebar-section">
-                    <h3>Bulk Actions</h3>
-                    <div class="bulk-actions-sidebar">
-                        <div>
-                            <label for="bulk_action">Action:</label>
-                            <select id="bulk_action" name="bulk_action" style="width: 100%;">
-                                <option value="">Choose an action...</option>
-                                <option value="set_active">Set as Active</option>
-                                <option value="set_inactive">Set as Inactive</option>
-                                <option value="delete">Delete</option>
-                            </select>
-                        </div>
-                        
-                        <div class="select-all-container">
-                            <input type="checkbox" id="select-all" />
-                            <label for="select-all">Select All Products</label>
-                        </div>
-                        
-                        <button type="submit" id="apply-button" class="button">Apply</button>
-                    </div>
-                </div>
-                
-                <!-- Import section -->
-                <div class="sidebar-section">
-                    <h3>Import Products</h3>
+        <!-- Sidebar with tools -->
+        <div class="sidebar">
+            <a href="add-product.php" class="button add-product-button">+ Add New Product</a>
+            
+            <!-- Import section -->
+            <div class="sidebar-section">
+                <h3>Import Products</h3>
+                <form method="post" action="" enctype="multipart/form-data">
                     <div class="form-row">
                         <label for="csv_file">Upload CSV File</label>
                         <input type="file" id="csv_file" name="csv_file" accept=".csv">
@@ -454,88 +512,111 @@ try {
                         <p>CSV must include at least "name" and "price" columns.</p>
                     </div>
                     <button type="submit" name="import_products" class="button">Import Products</button>
-                </div>
-                
-                <!-- WooCommerce Import -->
-                <div class="sidebar-section">
-                    <h3>Import from WooCommerce</h3>
-                    <form method="post">
-                        <button type="submit" name="import_woocommerce" class="button">Import from WooCommerce</button>
-                    </form>
-                </div>
-                
-                <!-- Export section -->
-                <div class="sidebar-section">
-                    <h3>Export Products</h3>
-                    <a href="export-products.php" class="button">Export Products as CSV</a>
-                </div>
-                
-                <!-- Template section -->
-                <div class="sidebar-section">
-                    <h3>CSV Template</h3>
-                    <a href="download-template.php" class="button">Download CSV Template</a>
+                </form>
+            </div>
+            
+            <!-- WooCommerce Import -->
+            <div class="sidebar-section">
+                <h3>Import from WooCommerce</h3>
+                <form method="post" action="">
+                    <button type="submit" name="import_woocommerce" class="button">Import from WooCommerce</button>
+                </form>
+            </div>
+            
+            <!-- Export section -->
+            <div class="sidebar-section">
+                <h3>Export Products</h3>
+                <a href="export-products.php" class="button">Export Products as CSV</a>
+            </div>
+            
+            <!-- Template section -->
+            <div class="sidebar-section">
+                <h3>CSV Template</h3>
+                <a href="download-template.php" class="button">Download CSV Template</a>
+            </div>
+        </div>
+        
+        <!-- Main content with products table -->
+        <form method="post" action="" id="bulk-form" class="main-content">
+            <!-- Add bulk actions here -->
+            <div class="bulk-actions-container">
+                <h3>Bulk Actions</h3>
+                <div class="bulk-actions-row">
+                    <div class="bulk-action-select">
+                        <label for="bulk_action">Action:</label>
+                        <select id="bulk_action" name="bulk_action">
+                            <option value="">Choose an action...</option>
+                            <option value="set_active">Set as Active</option>
+                            <option value="set_inactive">Set as Inactive</option>
+                            <option value="delete">Delete</option>
+                        </select>
+                    </div>
+                    
+                    <div class="select-all-container">
+                        <input type="checkbox" id="select-all" />
+                        <label for="select-all">Select All Products</label>
+                    </div>
+                    
+                    <button type="submit" id="apply-button" class="button">Apply</button>
                 </div>
             </div>
             
-            <!-- Main content with products table -->
-            <div class="main-content">
-                <?php if (empty($products)): ?>
-                    <div class="empty-state">
-                        <h2>No Products Found</h2>
-                        <p>Start by adding your first product.</p>
-                    </div>
-                <?php else: ?>
-                    <table class="product-table">
-                        <thead>
+            <?php if (empty($products)): ?>
+                <div class="empty-state">
+                    <h2>No Products Found</h2>
+                    <p>Start by adding your first product.</p>
+                </div>
+            <?php else: ?>
+                <table class="product-table">
+                    <thead>
+                        <tr>
+                            <th width="30px">Select</th>
+                            <th>Image</th>
+                            <th>Name</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($products as $product): ?>
                             <tr>
-                                <th width="30px">Select</th>
-                                <th>Image</th>
-                                <th>Name</th>
-                                <th>Price</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <td>
+                                    <input type="checkbox" name="selected_products[]" value="<?php echo $product['id']; ?>" class="product-checkbox">
+                                </td>
+                                <td>
+                                    <?php if (!empty($product['image'])): ?>
+                                        <img src="<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="product-image">
+                                    <?php else: ?>
+                                        <div class="product-image" style="background-color:#eee;display:flex;align-items:center;justify-content:center;">No Image</div>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo htmlspecialchars($product['name']); ?></td>
+                                <td>
+                                    <?php if (isset($product['sale_price']) && $product['sale_price'] > 0): ?>
+                                        <span style="text-decoration: line-through;">&pound;<?php echo number_format($product['regular_price'], 2); ?></span>
+                                        <span style="color: #F44336; font-weight: bold;">&pound;<?php echo number_format($product['sale_price'], 2); ?></span>
+                                    <?php else: ?>
+                                        &pound;<?php echo number_format($product['regular_price'] ?? $product['price'], 2); ?>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-<?php echo $product['status']; ?>">
+                                        <?php echo ucfirst($product['status']); ?>
+                                    </span>
+                                </td>
+                                <td class="actions">
+                                    <a href="edit-product.php?id=<?php echo $product['id']; ?>" class="button edit-button">Edit</a>
+                                    <form method="post" action="" onsubmit="return confirm('Are you sure you want to delete this product?');" style="display:inline">
+                                        <input type="hidden" name="product_id" value="<?php echo $product['id']; ?>">
+                                        <button type="submit" name="delete_product" class="button delete-button">Delete</button>
+                                    </form>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($products as $product): ?>
-                                <tr>
-                                    <td>
-                                        <input type="checkbox" name="selected_products[]" value="<?php echo $product['id']; ?>" class="product-checkbox">
-                                    </td>
-                                    <td>
-                                        <?php if (!empty($product['image'])): ?>
-                                            <img src="<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="product-image">
-                                        <?php else: ?>
-                                            <div class="product-image" style="background-color:#eee;display:flex;align-items:center;justify-content:center;">No Image</div>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td><?php echo htmlspecialchars($product['name']); ?></td>
-                                    <td>
-                                        <?php if (isset($product['sale_price']) && $product['sale_price'] > 0): ?>
-                                            <span style="text-decoration: line-through;">&pound;<?php echo number_format($product['regular_price'], 2); ?></span>
-                                            <span style="color: #F44336; font-weight: bold;">&pound;<?php echo number_format($product['sale_price'], 2); ?></span>
-                                        <?php else: ?>
-                                            &pound;<?php echo number_format($product['regular_price'] ?? $product['price'], 2); ?>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <span class="status-badge status-<?php echo $product['status']; ?>">
-                                            <?php echo ucfirst($product['status']); ?>
-                                        </span>
-                                    </td>
-                                    <td class="actions">
-                                        <a href="edit-product.php?id=<?php echo $product['id']; ?>" class="button edit-button">Edit</a>
-                                        <form method="post" action="" onsubmit="return confirm('Are you sure you want to delete this product?');" style="display:inline">
-                                            <input type="hidden" name="product_id" value="<?php echo $product['id']; ?>">
-                                            <button type="submit" name="delete_product" class="button delete-button">Delete</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                <?php endif; ?>
-            </div><!-- Close main-content -->
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
         </form>
     </div><!-- Close admin-layout -->
 </div>
@@ -546,6 +627,28 @@ document.getElementById('select-all').addEventListener('change', function() {
     for (var i = 0; i < checkboxes.length; i++) {
         checkboxes[i].checked = this.checked;
     }
+});
+
+// Add form validation
+document.getElementById('bulk-form').addEventListener('submit', function(e) {
+    var action = document.getElementById('bulk_action').value;
+    var checkedBoxes = document.querySelectorAll('.product-checkbox:checked');
+    
+    if (action === '') {
+        alert('Please select an action from the dropdown.');
+        e.preventDefault();
+        return;
+    }
+    
+    if (checkedBoxes.length === 0) {
+        alert('Please select at least one product.');
+        e.preventDefault();
+        return;
+    }
+    
+    // For debugging
+    console.log('Action: ' + action);
+    console.log('Selected products: ' + checkedBoxes.length);
 });
 </script>
 

@@ -73,7 +73,7 @@ require_once 'includes/get_products.php';
                         <tr>
                             <td>
                                 <div class="cart-product">
-                                    <img src="<?php echo $product['image']; ?>" alt="<?php echo $product['name']; ?>">
+                                    <img src="<?php echo htmlspecialchars(process_image_url($product['image'])); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="cart-item-image">
                                     <span><?php echo $product['name']; ?></span>
                                 </div>
                             </td>

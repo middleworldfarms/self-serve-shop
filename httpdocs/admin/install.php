@@ -9,8 +9,11 @@ try {
     // Create orders table
     $db->exec("CREATE TABLE IF NOT EXISTS orders (...)");
     
-    // Create products table
-    $db->exec("CREATE TABLE IF NOT EXISTS products (...)");
+    // Create sss_products table
+    $db->exec("CREATE TABLE IF NOT EXISTS sss_products (...)");
+    
+    // Create sss_prod table
+    $db->exec("CREATE TABLE IF NOT EXISTS sss_prod");  // Incomplete
     
     // Create order_logs table
     $db->exec("
