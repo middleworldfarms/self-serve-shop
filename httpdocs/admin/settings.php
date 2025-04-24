@@ -112,15 +112,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         if (isset($_FILES['site_logo']) && $_FILES['site_logo']['error'] === UPLOAD_ERR_OK) {
-            $upload_dir = __DIR__ . '/uploads/';
+            // Use the organized logos directory
+            $upload_dir = '../uploads/logos/';
+            
+            // Make sure directory exists
             if (!is_dir($upload_dir)) {
-                mkdir($upload_dir, 0755, true);
+                mkdir($upload_dir, 0777, true);
             }
+            
+            // Generate filename
             $ext = pathinfo($_FILES['site_logo']['name'], PATHINFO_EXTENSION);
             $filename = 'logo_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
             $target = $upload_dir . $filename;
+            
             if (move_uploaded_file($_FILES['site_logo']['tmp_name'], $target)) {
-                $settings['site_logo'] = 'admin/uploads/' . $filename;
+                // Store relative path in settings
+                $settings['site_logo'] = 'uploads/logos/' . $filename;
+            } else {
+                $error = "Could not upload logo.";
             }
         }
         if (save_settings($settings)) {
