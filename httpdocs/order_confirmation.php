@@ -4,26 +4,60 @@ ini_set('display_errors', 1);
 
 require_once 'config.php';
 
-// Ensure database connection is established
-global $db;
-if (!isset($db) || !$db instanceof PDO) {
+// Database connection
+try {
+    $db = new PDO(
+        'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME,
+        DB_USER,
+        DB_PASS
+    );
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Database connection failed: " . $e->getMessage());
+}
+
+// Get order ID from URL parameter
+$order_id = isset($_GET['order_id']) ? $_GET['order_id'] : '';
+$order_number = isset($_GET['order_number']) ? $_GET['order_number'] : '';
+$order_exists = false;
+
+// Try to find order in database
+if (!empty($order_id) || !empty($order_number)) {
     try {
-        $db = new PDO(
-            'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME,
-            DB_USER,
-            DB_PASS,
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-        );
-    } catch (PDOException $e) {
-        die("Database connection failed: " . $e->getMessage());
+        if (!empty($order_id)) {
+            $stmt = $db->prepare("SELECT * FROM orders WHERE id = ?");
+            $stmt->execute([$order_id]);
+        } else {
+            $stmt = $db->prepare("SELECT * FROM orders WHERE order_number = ?");
+            $stmt->execute([$order_number]);
+        }
+        
+        $order_data = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($order_data) {
+            $order_exists = true;
+            $order_id = $order_data['id'];
+            $order_number = $order_data['order_number'];
+            $payment_method = $order_data['payment_method'];
+            $cart_total = $order_data['total_amount'];
+            
+            // Parse items from order
+            if (!empty($order_data['items'])) {
+                $cart_items = json_decode($order_data['items'], true);
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Database error looking up order: " . $e->getMessage());
     }
 }
 
-// Get settings for page title and other variables needed by header
-$settings = get_settings();
-$page_title = 'Order Confirmation - ' . ($settings['shop_name'] ?? 'Self-Serve Shop');
-
-$order_id = isset($_GET['order_id']) ? $_GET['order_id'] : '';
+// Fall back to session data if database lookup fails
+if (!$order_exists) {
+    // Get order details from session
+    $cart_total = isset($_SESSION['cart_total']) ? $_SESSION['cart_total'] : 0;
+    $cart_items = isset($_SESSION['cart_items']) ? $_SESSION['cart_items'] : [];
+    $payment_method = isset($_SESSION['payment_method']) ? $_SESSION['payment_method'] : 'manual';
+}
 
 // If no order ID or not in session, redirect to homepage
 if (empty($order_id) || !isset($_SESSION['last_order_id']) || $_SESSION['last_order_id'] != $order_id) {
@@ -31,40 +65,8 @@ if (empty($order_id) || !isset($_SESSION['last_order_id']) || $_SESSION['last_or
     exit;
 }
 
-// Get order details from session or database
-$cart_total = isset($_SESSION['cart_total']) ? $_SESSION['cart_total'] : 0;
-$cart_items = isset($_SESSION['cart_items']) ? $_SESSION['cart_items'] : [];
-
-// Verify the order exists in the database
-try {
-    $check_stmt = $db->prepare("SELECT id, payment_method, total_amount, items FROM orders WHERE id = ? OR order_number = ?");
-    $check_stmt->execute([$order_id, $order_id]);
-    $order_exists = $check_stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($order_exists) {
-        // Use database values if available
-        $cart_total = $order_exists['total_amount'];
-        
-        // Try to get items from database
-        if (!empty($order_exists['items'])) {
-            $db_items = json_decode($order_exists['items'], true);
-            if (is_array($db_items) && !empty($db_items)) {
-                $cart_items = $db_items;
-            }
-        }
-        
-        echo "<div style='background:#d4edda; color:#155724; padding:10px; margin-bottom:15px; border-radius:4px;'>
-              <strong>Debug:</strong> Order confirmed in database! ID: {$order_exists['id']}, 
-              Method: {$order_exists['payment_method']}, Amount: £{$order_exists['total_amount']}
-              </div>";
-    } else {
-        echo "<div style='background:#f8d7da; color:#721c24; padding:10px; margin-bottom:15px; border-radius:4px;'>
-              <strong>Warning:</strong> Order not found in database. This may cause reporting issues.
-              </div>";
-    }
-} catch (Exception $e) {
-    error_log("Order confirmation database check error: " . $e->getMessage());
-}
+// Set up page title for the header
+$page_title = 'Order Confirmation';
 
 // Include standard header
 require_once 'includes/header.php';
@@ -137,68 +139,78 @@ require_once 'includes/header.php';
         text-align: center;
         margin-top: 30px;
     }
+    
+    .button {
+        background-color: <?php echo $primary; ?>;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 4px;
+        text-decoration: none;
+        display: inline-block;
+        font-weight: bold;
+    }
 </style>
 
-<div class="container">
-    <div class="confirmation-container">
-        <div class="confirmation-header">
-            <h1>Thank You for Your Order!</h1>
-            <p class="order-number">Order #: <?php echo $order_id; ?></p>
-        </div>
-        
-        <p>Please help yourself to your goods and thanks for shopping at <?php echo $settings['shop_name'] ?? 'our shop'; ?>!</p>
-        
-        <div class="order-details">
-            <h2>Order Details</h2>
-            <ul class="order-items">
-                <?php foreach ($cart_items as $item) : ?>
-                <li>
-                    <span class="item-name"><?php echo $item['name']; ?> <span class="item-quantity">× <?php echo $item['quantity']; ?></span></span>
-                    <span class="item-price">&pound;<?php echo number_format($item['price'] * $item['quantity'], 2); ?></span>
-                </li>
-                <?php endforeach; ?>
-            </ul>
-            <div class="order-total">
-                <span>Total:</span>
-                <span>&pound;<?php echo number_format($cart_total, 2); ?></span>
+<main>
+    <div class="container">
+        <div class="confirmation-container">
+            <div class="confirmation-header">
+                <h1>Thank You for Your Order!</h1>
+                <p class="order-number">Order #: <?php echo $order_id; ?></p>
+            </div>
+            
+            <p>Please help yourself to your goods and thanks for shopping at <?php echo htmlspecialchars($shop_name); ?>!</p>
+            
+            <div class="order-details">
+                <h2>Order Details</h2>
+                <ul class="order-items">
+                    <?php foreach ($cart_items as $item) : ?>
+                    <li>
+                        <span class="item-name"><?php echo $item['name']; ?> <span class="item-quantity">× <?php echo $item['quantity']; ?></span></span>
+                        <span class="item-price">&pound;<?php echo number_format($item['price'] * $item['quantity'], 2); ?></span>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
+                <div class="order-total">
+                    <span>Total:</span>
+                    <span>&pound;<?php echo number_format($cart_total, 2); ?></span>
+                </div>
+            </div>
+            
+            <?php 
+            // Get settings for payment info
+            $settings = get_settings();
+
+            if ($payment_method === 'manual'): ?>
+            <div class="payment-info">
+                <h3>Payment Information</h3>
+                <p><?php echo $settings['payment_instructions'] ?? 'Please place your payment in the honor box.'; ?></p>
+            </div>
+            <?php elseif ($payment_method === 'bank_transfer'): ?>
+            <div class="payment-info">
+                <h3>Payment Information</h3>
+                <p>Please complete your payment by bank transfer using these details:</p>
+                <p><?php echo $settings['bank_details'] ?? ''; ?></p>
+                <p><strong>Reference:</strong> Order #<?php echo $order_id; ?></p>
+            </div>
+            <?php endif; ?>
+            
+            <?php if ($payment_method === 'woo_funds'): ?>
+            <div class="payment-info woo-funds">
+                <h3>Payment Information</h3>
+                <p>Payment completed using your account credit.</p>
+                <?php if (isset($_SESSION['woo_funds_balance'])): ?>
+                <p>Your remaining account balance: <strong>&pound;<?php echo number_format($_SESSION['woo_funds_balance'], 2); ?></strong></p>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+            
+            <div class="continue-shopping">
+                <a href="index.php" class="button">Continue Shopping</a>
             </div>
         </div>
-        
-        <?php 
-        // Get payment provider from settings
-        $payment_provider = $settings['payment_provider'] ?? 'manual';
-        
-        if ($payment_provider === 'manual'): ?>
-        <div class="payment-info">
-            <h3>Payment Information</h3>
-            <p><?php echo $settings['payment_instructions'] ?? 'Please place your payment in the honor box.'; ?></p>
-        </div>
-        <?php elseif ($payment_provider === 'bank_transfer'): ?>
-        <div class="payment-info">
-            <h3>Payment Information</h3>
-            <p>Please complete your payment by bank transfer using these details:</p>
-            <p><?php echo $settings['bank_details'] ?? ''; ?></p>
-            <p><strong>Reference:</strong> Order #<?php echo $order_id; ?></p>
-        </div>
-        <?php endif; ?>
-        
-        <?php if (isset($_SESSION['payment_method']) && $_SESSION['payment_method'] === 'woo_funds'): ?>
-        <div class="payment-info woo-funds">
-            <h3>Payment Information</h3>
-            <p>Payment completed using your account credit.</p>
-            <?php if (isset($_SESSION['woo_funds_balance'])): ?>
-            <p>Your remaining account balance: <strong>&pound;<?php echo number_format($_SESSION['woo_funds_balance'], 2); ?></strong></p>
-            <?php endif; ?>
-        </div>
-        <?php endif; ?>
-        
-        <div class="continue-shopping">
-            <a href="index.php" class="button">Continue Shopping</a>
-        </div>
     </div>
-</div>
+</main>
 
-<?php
-// Include standard footer
-require_once 'includes/footer.php';
-?>
+<?php require_once 'includes/footer.php'; ?>
