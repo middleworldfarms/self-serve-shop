@@ -95,14 +95,11 @@ require_once 'includes/get_products.php';
                 </table>
                 
                 <div class="cart-actions">
-                    <div class="button-group">
-                        <a href="index.php" class="button continue-shopping">Continue Shopping</a>
-                        <button type="submit" name="clear_cart" class="button clear-cart">Clear Cart</button>
-                    </div>
-                    <div class="button-group">
-                        <button type="submit" name="update_cart" class="button update-cart">Update Cart</button>
-                        <a href="checkout.php" class="button checkout">Proceed to Checkout</a>
-                    </div>
+                    <button type="submit" name="update_cart" class="button update-button green-button">Update Cart</button>
+                    <a href="index.php" class="button continue-button green-button">Continue Shopping</a>
+                    <?php if (!empty($_SESSION['cart'])): ?>
+                    <a href="checkout.php" class="button checkout-button green-button">Proceed to Checkout</a>
+                    <?php endif; ?>
                 </div>
             </form>
         <?php endif; ?>
@@ -171,5 +168,44 @@ require_once 'includes/get_products.php';
 }
 .checkout {
     background-color: #4caf50;
+}
+
+/* Green button styling */
+.green-button {
+    background-color: #4CAF50 !important;
+    color: white !important;
+    border: none !important;
+    transition: background-color 0.3s ease !important;
+    padding: 12px 24px !important;  /* Increased padding */
+    font-size: 16px !important;     /* Larger font */
+    font-weight: bold !important;   /* Bold text */
+    border-radius: 4px !important;  /* Rounded corners */
+    text-decoration: none !important;
+    display: inline-block !important;
+    text-align: center !important;
+    cursor: pointer !important;
+    min-width: 140px !important;    /* Ensure minimum width */
+}
+
+.green-button:hover {
+    background-color: #45a049 !important;
+    transform: translateY(-2px) !important;  /* Slight lift effect on hover */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;  /* Shadow for depth */
+}
+
+/* Individual button adjustments */
+.update-button {
+    margin-right: 10px;
+}
+
+.checkout-button {
+    font-weight: bold;
+}
+
+.cart-actions {
+    display: flex;
+    gap: 15px;  /* Increased gap for more spacing */
+    margin-top: 25px;
+    justify-content: center;  /* Center the buttons */
 }
 </style>

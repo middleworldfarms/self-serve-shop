@@ -124,6 +124,36 @@ function process_image_url($url) {
 }
 
 /**
+ * Standardize image paths for uploads
+ * This function won't break existing paths but helps organize new uploads
+ */
+function organize_image_path($image_path, $type = 'products') {
+    // Don't modify paths that are already organized
+    if (strpos($image_path, 'uploads/icons/') !== false || 
+        strpos($image_path, 'uploads/logos/') !== false || 
+        strpos($image_path, 'uploads/products/') !== false) {
+        return $image_path;
+    }
+    
+    // Get just the filename
+    $filename = basename($image_path);
+    
+    // Determine type if not specified
+    if ($type === 'auto') {
+        if (strpos(strtolower($filename), 'logo') !== false) {
+            $type = 'logos';
+        } elseif (strpos(strtolower($filename), 'icon') !== false || 
+                 strpos(strtolower($filename), 'placeholder') !== false) {
+            $type = 'icons';
+        } else {
+            $type = 'products';
+        }
+    }
+    
+    return "uploads/$type/$filename";
+}
+
+/**
  * Universal settings loader for both admin and customer
  */
 function get_settings() {
