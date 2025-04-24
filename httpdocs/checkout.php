@@ -513,6 +513,36 @@ require_once 'includes/header.php';
     button.button.primary:hover {
         background-color: #388E3C !important; /* Darker green on hover */
     }
+
+    /* Add this to your existing styles section */
+    .password-field-container {
+        position: relative;
+        display: flex;
+        width: 100%;
+    }
+    
+    .password-field-container input[type="password"],
+    .password-field-container input[type="text"] {
+        flex: 1;
+    }
+    
+    .password-toggle {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        font-size: 14px;
+        color: #388E3C;
+        user-select: none;
+        background: white;
+        padding: 0 5px;
+    }
+    
+    .password-toggle:hover {
+        color: #2E7D32;
+        text-decoration: underline;
+    }
 </style>
     
 <main>
@@ -565,7 +595,7 @@ require_once 'includes/header.php';
                     
                     <?php if (isset($settings['enable_manual_payment']) && $settings['enable_manual_payment'] == '1'): ?>
                         <!-- Manual payment instructions -->
-                        <div class="manual-payment-info">
+                        <div class="manual-payment-info" id="manual-payment-info-section">
                             <h3>Manual Payment Instructions</h3>
                             <div class="payment-instructions">
                                 <?php echo nl2br(htmlspecialchars($settings['payment_instructions'] ?? 'Please contact the shop for payment instructions.')); ?>
@@ -642,7 +672,10 @@ require_once 'includes/header.php';
                                         </div>
                                         <div class="form-row">
                                             <label for="woo-funds-password">Account Password:</label>
-                                            <input type="password" id="woo-funds-password" name="woo_funds_password">
+                                            <div class="password-field-container">
+                                                <input type="password" id="woo-funds-password" name="woo_funds_password">
+                                                <span class="password-toggle" onclick="togglePassword('woo-funds-password', this)">Show</span>
+                                            </div>
                                             <small><a href="<?php echo htmlspecialchars($settings['woo_shop_url'] ?? '', ENT_QUOTES); ?>/my-account/lost-password/" target="_blank">Forgot password?</a></small>
                                         </div>
                                         <div class="form-row" style="margin-top: 15px;">
@@ -746,12 +779,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const paypalDetails = document.getElementById('paypal-payment-details');
     const wooFundsDetails = document.getElementById('woo-funds-payment-details');
     const gocardlessDetails = document.getElementById('gocardless-payment-details');
+    const manualPaymentInfoSection = document.getElementById('manual-payment-info-section');
     
-    // Update the updatePaymentDetails function
     function updatePaymentDetails() {
+        // Get the manual payment info section
+        const manualPaymentInfoSection = document.getElementById('manual-payment-info-section');
+        
         // Existing code for payment details display
         if (manualRadio) {
             manualDetails.style.display = manualRadio.checked ? 'block' : 'none';
+            
+            // Show/hide manual payment instructions based on selection
+            if (manualPaymentInfoSection) {
+                manualPaymentInfoSection.style.display = manualRadio.checked ? 'block' : 'none';
+            }
             
             // Toggle visibility and requirements for customer info fields
             const customerInfoFields = document.querySelectorAll('.customer-info-fields');
@@ -821,6 +862,33 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// Toggle password visibility
+function togglePassword(fieldId, toggleElement) {
+    const passwordField = document.getElementById(fieldId);
+    if (passwordField.type === 'password') {
+        passwordField.type = 'text';
+        toggleElement.textContent = 'Hide';
+    } else {
+        passwordField.type = 'password';
+        toggleElement.textContent = 'Show';
+    }
+}
+
+// Add this function to your existing script section at the bottom of the file
+function togglePassword(inputId, toggleElement) {
+    const passwordInput = document.getElementById(inputId);
+    const currentType = passwordInput.type;
+    
+    // Toggle between password and text type
+    if (currentType === 'password') {
+        passwordInput.type = 'text';
+        toggleElement.textContent = 'Hide';
+    } else {
+        passwordInput.type = 'password';
+        toggleElement.textContent = 'Show';
+    }
+}
 </script>
 </body>
 </html>

@@ -3,6 +3,62 @@ require_once __DIR__ . '/../autoload.php';
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../includes/logger.php';
 
+function wp_remote_post($url, $args = []) {
+    $method = $args['method'] ?? 'POST';
+    $headers = $args['headers'] ?? [];
+    $timeout = $args['timeout'] ?? 30;
+    $body = $args['body'] ?? '';
+    
+    $ch = curl_init($url);
+    
+    // Set method
+    curl_setopt($ch, CURLOPT_POST, true);
+    
+    // Set headers
+    $curl_headers = [];
+    foreach ($headers as $key => $value) {
+        $curl_headers[] = "$key: $value";
+    }
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $curl_headers);
+    
+    // Set timeout
+    curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+    
+    // Set body
+    if (!empty($body)) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    }
+    
+    // Other options
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+    
+    // Execute request
+    $response_body = curl_exec($ch);
+    $status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
+    curl_close($ch);
+    
+    if ($curl_error) {
+        return [
+            'body' => null,
+            'response' => [
+                'code' => 0,
+                'message' => $curl_error
+            ],
+            'error' => $curl_error
+        ];
+    }
+    
+    return [
+        'body' => $response_body,
+        'response' => [
+            'code' => $status_code
+        ]
+    ];
+}
+
 function processPayment($order_id, $amount, $payment_method, $payment_data = []) {
     switch ($payment_method) {
         case 'manual':
@@ -58,38 +114,64 @@ function processPayment($order_id, $amount, $payment_method, $payment_data = [])
             return $result;
             
         case 'woo_funds':
-            require_once __DIR__ . '/../woo-funds-payment.php';
-            $result = processWooFundsPayment(
-                $order_id,
-                $amount,
-                $payment_data['customer_email'] ?? '',
-                $payment_data['password'] ?? ''
-            );
+            $settings = get_settings();
             
-            if ($result['success']) {
-                log_order_event($order_id, 'payment_completed', [
-                    'method' => $payment_method,
-                    'transaction_id' => $result['transaction_id'] ?? '',
-                    'new_balance' => $result['new_balance'] ?? 0
-                ]);
+            // Build proper API endpoint URL
+            $api_url = $settings['woo_shop_url'] ?? 'https://middleworldfarms.org';
+            $api_url = rtrim($api_url, '/') . '/wp-json/middleworld/v1/funds';
+            
+            // Use configured API key from settings
+            $api_key = $settings['woo_funds_api_key'] ?? 'Ffsh8yhsuZEGySvLrP0DihCDDwhPwk4h';
+            
+            // Debug logging
+            error_log("WooFunds API call: $api_url with key length: " . strlen($api_key));
+            
+            // Prepare request data
+            $request_data = [
+                'action' => 'deduct',
+                'email' => $payment_data['customer_email'],
+                'amount' => $amount,
+                'order_id' => $order_id,
+                'description' => 'Self-serve shop purchase'
+            ];
+            
+            // Make API request with proper headers
+            $response = wp_remote_post($api_url, [
+                'timeout' => 45,
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'X-WC-API-Key' => $api_key
+                ],
+                'body' => json_encode($request_data)
+            ]);
+            
+            // Process response
+            $result = [
+                'success' => false,
+                'error' => 'Connection failed to store API'
+            ];
+            
+            if (is_array($response) && isset($response['body'])) {
+                $body = json_decode($response['body'], true);
                 
-                // Get order items and customer info for WooCommerce
-                $items = $_SESSION['cart_items'] ?? [];
-                $customer_info = [
-                    'email' => $payment_data['customer_email'] ?? ''
-                ];
-                
-                // Sync to WooCommerce
-                sync_to_woocommerce($order_id, $amount, $payment_method, $items, $customer_info);
-                
-                return $result;
-            } else {
-                log_order_event($order_id, 'payment_failed', [
-                    'method' => $payment_method,
-                    'error' => $result['error'] ?? 'Unknown error'
-                ]);
-                return $result;
+                if (!empty($body)) {
+                    if (isset($body['success']) && $body['success'] === true) {
+                        $result = [
+                            'success' => true,
+                            'transaction_id' => $body['transaction_id'] ?? '',
+                            'new_balance' => $body['new_balance'] ?? 0
+                        ];
+                        
+                        // Store balance in session for display on confirmation page
+                        $_SESSION['woo_funds_balance'] = $body['new_balance'];
+                        $_SESSION['payment_method'] = 'woo_funds';
+                    } else {
+                        $result['error'] = $body['error'] ?? $body['message'] ?? 'Unknown error processing account credit payment';
+                    }
+                }
             }
+            
+            return $result;
             
         case 'gocardless':
             require_once __DIR__ . '/gocardless-payment.php';

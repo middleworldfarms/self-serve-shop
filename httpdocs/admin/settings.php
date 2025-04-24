@@ -570,13 +570,17 @@ h2 {
                 <input type="text" id="woo_funds_api_url" name="woo_funds_api_url" value="<?php echo htmlspecialchars($current_settings['woo_funds_api_url'] ?? $current_settings['woo_shop_url'] ?? '', ENT_QUOTES); ?>">
                 <small>URL to your WooCommerce site API (usually your shop URL)</small>
                 
-                <label for="woo_funds_consumer_key">WooCommerce Consumer Key:</label>
+                <label for="woo_funds_consumer_key">WooCommerce REST API Key:</label>
                 <input type="text" id="woo_funds_consumer_key" name="woo_funds_consumer_key" value="<?php echo htmlspecialchars($current_settings['woo_funds_consumer_key'] ?? $current_settings['woo_consumer_key'] ?? '', ENT_QUOTES); ?>">
-                <small>Consumer key from your WooCommerce REST API settings</small>
-                
-                <label for="woo_funds_consumer_secret">WooCommerce Consumer Secret:</label>
+                <small>Used for general WooCommerce API access (creating orders, syncing products)</small>
+
+                <label for="woo_funds_consumer_secret">WooCommerce REST API Secret:</label>
                 <input type="text" id="woo_funds_consumer_secret" name="woo_funds_consumer_secret" value="<?php echo htmlspecialchars($current_settings['woo_funds_consumer_secret'] ?? $current_settings['woo_consumer_secret'] ?? '', ENT_QUOTES); ?>">
-                <small>Consumer secret from your WooCommerce REST API settings</small>
+                <small>Used with the API Key above for authenticating general WooCommerce API requests</small>
+
+                <label for="woo_funds_api_key">Self-Serve Shop Integration Key:</label>
+                <input type="text" id="woo_funds_api_key" name="woo_funds_api_key" value="<?php echo htmlspecialchars($current_settings['woo_funds_api_key'] ?? '', ENT_QUOTES); ?>">
+                <small>Special key from your WordPress plugin for account balance operations (found in your WordPress Admin → Self-Serve Shop settings)</small>
                 
                 <div style="margin-top: 20px; padding: 15px; background: #f8f8f8; border-radius: 6px; border-left: 4px solid #388E3C;">
                     <h5 style="margin-top: 0;">How It Works</h5>
