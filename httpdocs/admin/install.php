@@ -6,7 +6,7 @@ try {
     $db = new PDO('mysql:host=' . DB_HOST . ';dbname=' . DB_NAME, DB_USER, DB_PASS);
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
-    // Create orders table
+    // Create orders table with new payment columns
     $db->exec("
         CREATE TABLE IF NOT EXISTS orders (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -17,6 +17,11 @@ try {
             payment_method VARCHAR(50) NOT NULL,
             payment_status VARCHAR(20) NOT NULL DEFAULT 'pending',
             items TEXT,
+            stripe_payment_id VARCHAR(100),
+            paypal_payment_id VARCHAR(100),
+            gocardless_payment_id VARCHAR(100),
+            woo_funds_transaction_id VARCHAR(100),
+            manual_payment_note TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB;
     ");
@@ -46,6 +51,23 @@ try {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB;
     ");
+    
+    // Insert new payment settings if not present
+    $settings = [
+        ['enable_square', '0'],
+        ['enable_apple_pay', '0'],
+        ['enable_google_pay', '0'],
+        ['stripe_webhook_secret', ''],
+        ['enable_manual_payment', '1'],
+        ['enable_stripe', '1'],
+        ['enable_paypal', '1'],
+        ['enable_gocardless', '0'],
+        ['enable_woo_funds', '1']
+    ];
+    foreach ($settings as $setting) {
+        $stmt = $db->prepare("INSERT IGNORE INTO self_serve_settings (setting_name, setting_value) VALUES (?, ?)");
+        $stmt->execute($setting);
+    }
     
     // Create order_logs table
     $db->exec("

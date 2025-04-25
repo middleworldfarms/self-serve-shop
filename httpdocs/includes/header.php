@@ -111,7 +111,13 @@ $current_file = basename($_SERVER['PHP_SELF']);
                 <?php endif; ?>
             </div>
             <div class="shop-header-title">
-                <?php echo htmlspecialchars($shop_name); ?>
+                <?php
+                if (!empty($settings['header_text'])) {
+                    echo htmlspecialchars($settings['header_text']);
+                } else {
+                    echo htmlspecialchars($shop_name);
+                }
+                ?>
             </div>
         </div>
     </div>

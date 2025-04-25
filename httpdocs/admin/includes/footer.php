@@ -10,6 +10,15 @@
         <?php if ($footer_logo): ?>
             <img src="<?php echo htmlspecialchars($footer_logo); ?>" alt="Site Logo" style="max-height:80px;">
         <?php endif; ?>
+        <p>
+            <?php
+            if (!empty($settings['footer_text'])) {
+                echo htmlspecialchars($settings['footer_text']);
+            } else {
+                echo '&copy; ' . date('Y') . ' ' . htmlspecialchars($settings['shop_name'] ?? 'Self-Serve Shop');
+            }
+            ?>
+        </p>
     </footer>
     <style>
         .admin-footer {

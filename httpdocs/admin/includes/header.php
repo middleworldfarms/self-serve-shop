@@ -105,6 +105,19 @@ $current_file = basename($_SERVER['PHP_SELF']);
             margin: 0;
             padding: 0;
         }
+        .shop-header-title {
+            justify-self: center;
+            text-align: center;
+            font-size: 2.6rem;    /* Make it bigger */
+            margin: 0 auto;       /* Center horizontally */
+            letter-spacing: 1px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            line-height: 1.2;
+            padding: 12px 0 8px 0;
+            width: 100%;
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -123,8 +136,14 @@ $current_file = basename($_SERVER['PHP_SELF']);
                     <img src="<?php echo htmlspecialchars($logo); ?>" alt="Site Logo">
                 <?php endif; ?>
             </div>
-            <div class="admin-header-title">
-                <?php echo htmlspecialchars($shop_name); ?> Admin
+            <div class="shop-header-title">
+                <?php
+                if (!empty($settings['header_text'])) {
+                    echo htmlspecialchars($settings['header_text']);
+                } else {
+                    echo htmlspecialchars($shop_name);
+                }
+                ?>
             </div>
         </div>
     </div>
