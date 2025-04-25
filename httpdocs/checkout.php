@@ -336,6 +336,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require_once 'includes/header.php';
 ?>
 
+<link rel="stylesheet" href="/css/styles.css">
+
 <!-- Update the container style in your CSS section -->
 <style>
     /* Add this to the top of your existing styles */
@@ -701,7 +703,7 @@ require_once 'includes/header.php';
     var elements = stripe.elements();
     
     // Create card Element and mount it
-    var card = elements.create('card'); // This will show the ZIP/postal code field inside the card input
+    var card = elements.create('card', { hidePostalCode: true }); // Hide ZIP/postal code field
     card.mount('#card-element');
 </script>
 <?php endif; ?>

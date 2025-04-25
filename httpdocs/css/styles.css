@@ -825,3 +825,27 @@ body > span:not(.contained-span) {
 }
 
 /* Updated April 2025 */
+
+/* === Color Row === */
+.color-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+.color-row input[type="color"] {
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: none;
+    padding: 0;
+}
+.color-hex, .color-rgb {
+    width: 110px;
+    padding: 8px 10px;
+    font-size: 1em;
+    border: 1.5px solid #e0e4ea;
+    border-radius: 6px;
+    box-sizing: border-box;
+    background: #fff;
+}

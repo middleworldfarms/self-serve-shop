@@ -309,6 +309,25 @@ h2 {
     margin-bottom: 10px;
     display: block;
 }
+.color-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.color-hex, .color-rgb {
+    width: 100px;
+    padding: 6px;
+    border: 1.5px solid #e0e4ea;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 0.9em;
+    background: #fff;
+    transition: border 0.2s;
+}
+.color-hex:focus, .color-rgb:focus {
+    border-color: #388E3C;
+    outline: none;
+}
 @media (max-width: 900px) {
     .admin-container { margin: 10px 0; padding: 10px 2vw; }
     .admin-settings-form { padding: 14px 6px; }
@@ -366,17 +385,37 @@ h2 {
         <form method="post" enctype="multipart/form-data" class="admin-settings-form">
             <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
 
+            <!-- Primary Color -->
             <label for="primary_color">Primary Color:</label>
-            <input type="text" id="primary_color" name="primary_color" value="<?php echo htmlspecialchars($current_settings['primary_color'] ?? '', ENT_QUOTES); ?>">
+            <div class="color-row">
+                <input type="color" id="primary_color" name="primary_color" value="<?php echo htmlspecialchars($current_settings['primary_color'] ?? '#388E3C', ENT_QUOTES); ?>">
+                <input type="text" id="primary_color_hex" class="color-hex" maxlength="7" value="<?php echo htmlspecialchars($current_settings['primary_color'] ?? '#388E3C', ENT_QUOTES); ?>">
+                <input type="text" id="primary_color_rgb" class="color-rgb" maxlength="18" value="">
+            </div>
 
+            <!-- Secondary Color -->
             <label for="secondary_color">Secondary Color:</label>
-            <input type="text" id="secondary_color" name="secondary_color" value="<?php echo htmlspecialchars($current_settings['secondary_color'] ?? '', ENT_QUOTES); ?>">
+            <div class="color-row">
+                <input type="color" id="secondary_color" name="secondary_color" value="<?php echo htmlspecialchars($current_settings['secondary_color'] ?? '#43A047', ENT_QUOTES); ?>">
+                <input type="text" id="secondary_color_hex" class="color-hex" maxlength="7" value="<?php echo htmlspecialchars($current_settings['secondary_color'] ?? '#43A047', ENT_QUOTES); ?>">
+                <input type="text" id="secondary_color_rgb" class="color-rgb" maxlength="18" value="">
+            </div>
 
+            <!-- Background Color -->
             <label for="background_color">Background Color:</label>
-            <input type="text" id="background_color" name="background_color" value="<?php echo htmlspecialchars($current_settings['background_color'] ?? '', ENT_QUOTES); ?>">
+            <div class="color-row">
+                <input type="color" id="background_color" name="background_color" value="<?php echo htmlspecialchars($current_settings['background_color'] ?? '#f5f7fa', ENT_QUOTES); ?>">
+                <input type="text" id="background_color_hex" class="color-hex" maxlength="7" value="<?php echo htmlspecialchars($current_settings['background_color'] ?? '#f5f7fa', ENT_QUOTES); ?>">
+                <input type="text" id="background_color_rgb" class="color-rgb" maxlength="18" value="">
+            </div>
 
+            <!-- Text Color -->
             <label for="text_color">Text Color:</label>
-            <input type="text" id="text_color" name="text_color" value="<?php echo htmlspecialchars($current_settings['text_color'] ?? '', ENT_QUOTES); ?>">
+            <div class="color-row">
+                <input type="color" id="text_color" name="text_color" value="<?php echo htmlspecialchars($current_settings['text_color'] ?? '#222222', ENT_QUOTES); ?>">
+                <input type="text" id="text_color_hex" class="color-hex" maxlength="7" value="<?php echo htmlspecialchars($current_settings['text_color'] ?? '#222222', ENT_QUOTES); ?>">
+                <input type="text" id="text_color_rgb" class="color-rgb" maxlength="18" value="">
+            </div>
 
             <label for="header_text">Header Text:</label>
             <input type="text" id="header_text" name="header_text" value="<?php echo htmlspecialchars($current_settings['header_text'] ?? '', ENT_QUOTES); ?>">
@@ -388,7 +427,7 @@ h2 {
             <input type="file" id="site_logo" name="site_logo" accept="image/*">
             <?php if (!empty($current_settings['site_logo'])): ?>
                 <div style="margin:10px 0;">
-                    <img src="<?php echo htmlspecialchars($current_settings['site_logo']); ?>" alt="Site Logo" style="max-width:180px;max-height:80px;">
+                    <img src="/<?php echo ltrim(htmlspecialchars($current_settings['site_logo']), '/'); ?>" alt="Site Logo" style="max-width:180px;max-height:80px;">
                 </div>
             <?php endif; ?>
 
@@ -758,5 +797,52 @@ h2 {
         <button type="submit" class="button primary">Sync Products from WooCommerce</button>
     </form>
 </div>
+
+<script>
+function hexToRgb(hex) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+    var bigint = parseInt(hex, 16);
+    var r = (bigint >> 16) & 255;
+    var g = (bigint >> 8) & 255;
+    var b = bigint & 255;
+    return 'rgb(' + r + ', ' + g + ', ' + b + ')';
+}
+function rgbToHex(rgb) {
+    var result = rgb.match(/\d+/g);
+    if (!result) return '#000000';
+    return "#" + result.map(x => {
+        x = parseInt(x).toString(16);
+        return x.length == 1 ? "0" + x : x;
+    }).join('');
+}
+['primary', 'secondary', 'background', 'text'].forEach(function(type) {
+    var color = document.getElementById(type + '_color');
+    var hex = document.getElementById(type + '_color_hex');
+    var rgb = document.getElementById(type + '_color_rgb');
+    if (!color || !hex || !rgb) return;
+    // Initialize RGB value
+    rgb.value = hexToRgb(color.value);
+    // Color picker changes
+    color.addEventListener('input', function() {
+        hex.value = color.value;
+        rgb.value = hexToRgb(color.value);
+    });
+    // Hex input changes
+    hex.addEventListener('input', function() {
+        if(/^#([0-9A-F]{3}){1,2}$/i.test(hex.value)) {
+            color.value = hex.value;
+            rgb.value = hexToRgb(hex.value);
+        }
+    });
+    // RGB input changes
+    rgb.addEventListener('input', function() {
+        if(/^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/i.test(rgb.value)) {
+            color.value = rgbToHex(rgb.value);
+            hex.value = rgbToHex(rgb.value);
+        }
+    });
+});
+</script>
 
 <?php require_once 'includes/footer.php'; ?>
