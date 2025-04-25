@@ -48,7 +48,7 @@ require_once 'includes/get_products.php';
             <div class="empty-cart">
                 <h2>Your cart is empty</h2>
                 <p>Browse our products and add items to your cart!</p>
-                <a href="index.php" class="button continue-shopping">View Products</a>
+                <a href="index.php" class="button continue-shopping green-button">View Products</a>
             </div>
         <?php else: ?>
             <form method="post" action="">

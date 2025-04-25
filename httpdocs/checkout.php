@@ -513,36 +513,6 @@ require_once 'includes/header.php';
     button.button.primary:hover {
         background-color: #388E3C !important; /* Darker green on hover */
     }
-
-    /* Add this to your existing styles section */
-    .password-field-container {
-        position: relative;
-        display: flex;
-        width: 100%;
-    }
-    
-    .password-field-container input[type="password"],
-    .password-field-container input[type="text"] {
-        flex: 1;
-    }
-    
-    .password-toggle {
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        cursor: pointer;
-        font-size: 14px;
-        color: #388E3C;
-        user-select: none;
-        background: white;
-        padding: 0 5px;
-    }
-    
-    .password-toggle:hover {
-        color: #2E7D32;
-        text-decoration: underline;
-    }
 </style>
     
 <main>
@@ -595,7 +565,7 @@ require_once 'includes/header.php';
                     
                     <?php if (isset($settings['enable_manual_payment']) && $settings['enable_manual_payment'] == '1'): ?>
                         <!-- Manual payment instructions -->
-                        <div class="manual-payment-info" id="manual-payment-info-section">
+                        <div class="manual-payment-info">
                             <h3>Manual Payment Instructions</h3>
                             <div class="payment-instructions">
                                 <?php echo nl2br(htmlspecialchars($settings['payment_instructions'] ?? 'Please contact the shop for payment instructions.')); ?>
@@ -630,13 +600,19 @@ require_once 'includes/header.php';
                             <div class="payment-option">
                                 <input type="radio" id="payment-stripe" name="payment_method" value="stripe" 
                                     <?php echo !(isset($settings['enable_manual_payment']) && $settings['enable_manual_payment'] == '1') ? 'checked' : ''; ?>>
-                                <label for="payment-stripe">Pay Online with Card</label>
+                                <label for="payment-stripe">
+                                    Pay Online with Card
+                                    <img src="https://stripe.com/img/v3/home/social.png" alt="Stripe" style="height:28px;vertical-align:middle;margin-left:8px;">
+                                </label>
                                 
                                 <div class="payment-details" id="stripe-payment-details">
                                     <div id="stripe-payment-form">
-                                        <!-- Stripe Elements placeholder -->
                                         <div id="card-element"></div>
                                         <div id="card-errors" role="alert"></div>
+                                        <div class="form-row" style="margin-top:15px;">
+                                            <label for="stripe-postcode">Post code</label>
+                                            <input type="text" id="stripe-postcode" name="stripe_postcode" maxlength="10" autocomplete="postal-code">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -665,6 +641,10 @@ require_once 'includes/header.php';
                                 
                                 <div class="payment-details" id="woo-funds-payment-details">
                                     <div id="woo-funds-form">
+                                        <div class="woo-funds-instructions" style="margin-bottom: 1em; color: #388E3C;">
+                                            Enter your account email and password below to pay using your available account credit.<br>
+                                            <strong>This is the login for your account on the main site.</strong>
+                                        </div>
                                         <p>Use the credit from your account to pay for this order.</p>
                                         <div class="form-row">
                                             <label for="woo-funds-email">Your Account Email:</label>
@@ -672,14 +652,14 @@ require_once 'includes/header.php';
                                         </div>
                                         <div class="form-row">
                                             <label for="woo-funds-password">Account Password:</label>
-                                            <div class="password-field-container">
-                                                <input type="password" id="woo-funds-password" name="woo_funds_password">
-                                                <span class="password-toggle" onclick="togglePassword('woo-funds-password', this)">Show</span>
-                                            </div>
+                                            <input type="password" id="woo-funds-password">
                                             <small><a href="<?php echo htmlspecialchars($settings['woo_shop_url'] ?? '', ENT_QUOTES); ?>/my-account/lost-password/" target="_blank">Forgot password?</a></small>
                                         </div>
-                                        <div class="form-row" style="margin-top: 15px;">
+                                        <div class="form-row" style="margin-top: 15px; display: flex; align-items: center; gap: 12px;">
                                             <a href="<?php echo htmlspecialchars($settings['woo_shop_url'] ?? '', ENT_QUOTES); ?>/my-account/" target="_blank" class="button secondary">Log in to your account</a>
+                                            <span class="woo-funds-note" style="color:#666; font-size: 0.98em;">
+                                                <em>(Only needed if you want to check your account details or balance)</em>
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -721,18 +701,8 @@ require_once 'includes/header.php';
     var elements = stripe.elements();
     
     // Create card Element and mount it
-    var card = elements.create('card');
+    var card = elements.create('card'); // This will show the ZIP/postal code field inside the card input
     card.mount('#card-element');
-    
-    // Handle real-time validation errors
-    card.on('change', function(event) {
-        var displayError = document.getElementById('card-errors');
-        if (event.error) {
-            displayError.textContent = event.error.message;
-        } else {
-            displayError.textContent = '';
-        }
-    });
 </script>
 <?php endif; ?>
 
@@ -779,20 +749,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const paypalDetails = document.getElementById('paypal-payment-details');
     const wooFundsDetails = document.getElementById('woo-funds-payment-details');
     const gocardlessDetails = document.getElementById('gocardless-payment-details');
-    const manualPaymentInfoSection = document.getElementById('manual-payment-info-section');
     
+    // Update the updatePaymentDetails function
     function updatePaymentDetails() {
-        // Get the manual payment info section
-        const manualPaymentInfoSection = document.getElementById('manual-payment-info-section');
-        
         // Existing code for payment details display
         if (manualRadio) {
             manualDetails.style.display = manualRadio.checked ? 'block' : 'none';
-            
-            // Show/hide manual payment instructions based on selection
-            if (manualPaymentInfoSection) {
-                manualPaymentInfoSection.style.display = manualRadio.checked ? 'block' : 'none';
-            }
             
             // Toggle visibility and requirements for customer info fields
             const customerInfoFields = document.querySelectorAll('.customer-info-fields');
@@ -811,6 +773,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Rest of your existing code for other payment methods
         if (stripeRadio) {
             stripeDetails.style.display = stripeRadio.checked ? 'block' : 'none';
+            const postcodeInput = document.getElementById('stripe-postcode');
+            if (postcodeInput) {
+                postcodeInput.required = stripeRadio.checked;
+            }
         }
         if (paypalRadio) {
             paypalDetails.style.display = paypalRadio.checked ? 'block' : 'none';
@@ -842,53 +808,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Update form submission handling
+    // Minimal robust submit handler
     document.getElementById('checkout-form').addEventListener('submit', function(e) {
-        const manualRadio = document.getElementById('payment-manual');
-        
-        // Skip validation for manual payments
-        if (manualRadio && manualRadio.checked) {
-            return true;
-        }
-        
-        // Add existing validation for WooCommerce Funds
+        // Only block Woo Funds if email is missing
+        const wooFundsRadio = document.getElementById('payment-woo-funds');
         if (wooFundsRadio && wooFundsRadio.checked) {
             const wooFundsEmail = document.getElementById('woo-funds-email').value;
             if (!wooFundsEmail) {
                 e.preventDefault();
                 alert('Please enter your account email address.');
-                return false;
             }
         }
+        // For all other payment types, allow form to submit!
     });
 });
-
-// Toggle password visibility
-function togglePassword(fieldId, toggleElement) {
-    const passwordField = document.getElementById(fieldId);
-    if (passwordField.type === 'password') {
-        passwordField.type = 'text';
-        toggleElement.textContent = 'Hide';
-    } else {
-        passwordField.type = 'password';
-        toggleElement.textContent = 'Show';
-    }
-}
-
-// Add this function to your existing script section at the bottom of the file
-function togglePassword(inputId, toggleElement) {
-    const passwordInput = document.getElementById(inputId);
-    const currentType = passwordInput.type;
-    
-    // Toggle between password and text type
-    if (currentType === 'password') {
-        passwordInput.type = 'text';
-        toggleElement.textContent = 'Hide';
-    } else {
-        passwordInput.type = 'password';
-        toggleElement.textContent = 'Show';
-    }
-}
 </script>
 </body>
 </html>

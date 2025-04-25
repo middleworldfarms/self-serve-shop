@@ -53,6 +53,7 @@ if (!defined('ENABLE_APPLE_PAY_PAYMENT')) define('ENABLE_APPLE_PAY_PAYMENT', fal
 if (!defined('ENABLE_GOOGLE_PAY_PAYMENT')) define('ENABLE_GOOGLE_PAY_PAYMENT', false);
 if (!defined('APPLE_MERCHANT_ID')) define('APPLE_MERCHANT_ID', '');
 if (!defined('GOOGLE_MERCHANT_ID')) define('GOOGLE_MERCHANT_ID', '');
+if (!defined('WOO_FUNDS_TEST_MODE')) define('WOO_FUNDS_TEST_MODE', '1'); // or '0' for live
 
 // Branding settings
 if (!defined('PRIMARY_COLOR')) define('PRIMARY_COLOR', '#4caf50');

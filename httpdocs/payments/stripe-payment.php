@@ -1,58 +1,101 @@
 <?php
-require_once __DIR__ . '/../autoload.php';
+// filepath: /var/www/vhosts/middleworld.farm/httpdocs/payments/stripe-payment.php
+
 require_once __DIR__ . '/../config.php';
 
-function processStripePayment($order_id, $amount, $payment_intent_id) {
+// Check if vendor directory is at project root or one level up
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    require_once __DIR__ . '/../vendor/autoload.php';
+} elseif (file_exists(__DIR__ . '/../../vendor/autoload.php')) {
+    require_once __DIR__ . '/../../vendor/autoload.php';
+} else {
+    die("Stripe library not found. Please install using: composer require stripe/stripe-php");
+}
+
+// Now use the Stripe library
+function processStripePayment($order_id, $amount, $params = []) {
     global $db;
     
-    // Get Stripe credentials from settings
-    $stmt = $db->query("SELECT setting_value FROM self_serve_settings WHERE setting_name = 'stripe_secret_key'");
-    $stripe_secret_key = $stmt->fetchColumn();
-    
-    // Set up Stripe
-    $stripe = new \Stripe\StripeClient($stripe_secret_key);
-    
     try {
-        // Retrieve the payment intent
-        $payment_intent = \Stripe\PaymentIntent::retrieve($payment_intent_id);
+        $settings = get_settings();
         
-        // If already successful, return the success response
-        if ($payment_intent->status === 'succeeded') {
+        // Get Stripe API key based on test mode setting
+        $test_mode = isset($settings['stripe_test_mode']) && $settings['stripe_test_mode'] == '1';
+        $stripe_secret = $test_mode ? 
+            ($settings['stripe_test_secret_key'] ?? '') : 
+            ($settings['stripe_secret_key'] ?? '');
+        
+        if (empty($stripe_secret)) {
             return [
-                'success' => true,
-                'transaction_id' => $payment_intent->id,
-                'status' => $payment_intent->status
+                'success' => false,
+                'error' => 'Stripe API key not configured'
             ];
         }
         
-        // Otherwise, confirm the payment intent if needed
-        if ($payment_intent->status === 'requires_confirmation') {
-            $payment_intent->confirm();
+        // Initialize Stripe
+        \Stripe\Stripe::setApiKey($stripe_secret);
+        
+        // Get payment method ID from params
+        $payment_method_id = $params['stripe_token'] ?? $params['payment_intent_id'] ?? '';
+        
+        if (empty($payment_method_id)) {
+            return [
+                'success' => false,
+                'error' => 'Payment method ID missing'
+            ];
         }
         
-        // Check final status
-        if ($payment_intent->status === 'succeeded') {
-            return [
-                'success' => true,
-                'transaction_id' => $payment_intent->id,
-                'status' => $payment_intent->status
-            ];
-        } else if ($payment_intent->status === 'requires_action') {
+        // Convert amount to cents (Stripe uses smallest currency unit)
+        $amount_in_cents = round($amount * 100);
+        
+        // Create a PaymentIntent
+        $intent = \Stripe\PaymentIntent::create([
+            'amount' => $amount_in_cents,
+            'currency' => 'gbp',
+            'payment_method' => $payment_method_id,
+            'confirmation_method' => 'manual',
+            'confirm' => true,
+            'description' => "Order #$order_id",
+            'metadata' => [
+                'order_id' => $order_id
+            ]
+        ]);
+        
+        // Check if payment requires additional action
+        if ($intent->status === 'requires_action' && 
+            $intent->next_action->type === 'use_stripe_sdk') {
+                
+            // Tell the client to handle the action
             return [
                 'success' => false,
                 'requires_action' => true,
-                'client_secret' => $payment_intent->client_secret
+                'payment_intent_client_secret' => $intent->client_secret,
+                'error' => 'This payment requires additional authentication'
+            ];
+        } else if ($intent->status === 'succeeded') {
+            // Payment succeeded
+            return [
+                'success' => true,
+                'transaction_id' => $intent->id
             ];
         } else {
+            // Invalid status
             return [
                 'success' => false,
-                'error' => 'Payment failed: ' . $payment_intent->status
+                'error' => 'Payment failed: ' . $intent->status
             ];
         }
-    } catch (Exception $e) {
+    } catch (\Stripe\Exception\ApiErrorException $e) {
+        // Catch Stripe errors
         return [
             'success' => false,
-            'error' => 'Payment processing error: ' . $e->getMessage()
+            'error' => 'Stripe error: ' . $e->getMessage()
+        ];
+    } catch (\Exception $e) {
+        // Catch any other errors
+        return [
+            'success' => false,
+            'error' => 'Error: ' . $e->getMessage()
         ];
     }
 }

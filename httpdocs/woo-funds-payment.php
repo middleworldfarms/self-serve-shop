@@ -1,7 +1,17 @@
 <?php
 require_once 'config.php';
 
-function processWooFundsPayment($order_id, $amount, $customer_email, $password = null) {
+function processWooFundsPayment($order_id, $amount, $customer_email, $password = null, $test_mode = '0') {
+    if ($test_mode === '1') {
+        // Always succeed in test mode
+        return [
+            'success' => true,
+            'transaction_id' => 'test-' . time(),
+            'new_balance' => 9999,
+            'method' => 'woo_funds'
+        ];
+    }
+
     global $db;
     $settings = get_settings();
     

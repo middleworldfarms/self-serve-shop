@@ -171,7 +171,13 @@ function processPayment($order_id, $amount, $payment_method, $payment_data = [])
         // New WooCommerce Funds payment method
         case 'woo_funds':
             require_once __DIR__ . '/woo-funds-payment.php';
-            return processWooFundsPayment($order_id, $amount, $payment_data['customer_email']);
+            return processWooFundsPayment(
+                $order_id,
+                $amount,
+                $payment_data['customer_email'],
+                $payment_data['password'] ?? null,
+                $payment_data['test_mode'] ?? '0'
+            );
             
         case 'gocardless':
             require_once __DIR__ . '/gocardless-payment.php';

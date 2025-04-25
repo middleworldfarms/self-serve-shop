@@ -35,7 +35,7 @@ a:hover {
 
 .button {
     display: inline-block;
-    padding: 10px 18px;
+    padding: 13px 21px; /* 3px more on all sides than before */
     background-color: var(--primary-color);
     color: white;
     text-decoration: none;
@@ -62,11 +62,23 @@ a:hover {
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
+/* Flashing animation for processing state */
+@keyframes flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+.button.processing {
+    background: #fbc02d !important;
+    color: #222 !important;
+    animation: flash 1s infinite;
+    cursor: wait;
+}
+
 button {
     display: inline-block;
     background-color: var(--primary-color);
     color: white;
-    padding: 10px 16px;
+    padding: 13px 21px; /* 3px more on all sides than before */
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -370,7 +382,7 @@ main {
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    padding: 1.5rem;
+    padding: 2rem;
 }
 
 .order-items {
@@ -412,10 +424,82 @@ main {
     font-size: 16px;
 }
 
+#stripe-payment-form {
+    margin-bottom: 1.5rem;
+}
+
 #card-element {
-    border: 1px solid var(--border-color);
-    padding: 10px;
+    height: 50px;
+    padding: 14px 12px;
+    font-size: 18px;
+    border: 1.5px solid #bdbdbd;
     border-radius: 4px;
+    background: #fafbfc;
+    margin-bottom: 12px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#uk-postcode {
+    height: 50px;
+    padding: 14px 12px;
+    font-size: 18px;
+    border: 1.5px solid #bdbdbd;
+    border-radius: 4px;
+    background: #fafbfc;
+    margin-bottom: 18px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#stripe-postcode {
+    height: 50px;
+    padding: 14px 12px;
+    font-size: 18px;
+    border: 1.5px solid #bdbdbd;
+    border-radius: 4px;
+    background: #fafbfc;
+    margin-bottom: 18px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.password-field-container input[type="password"],
+.password-field-container input[type="text"] {
+    height: 50px;
+    padding: 14px 12px;
+    font-size: 18px;
+    border: 1.5px solid #bdbdbd;
+    border-radius: 4px;
+    background: #fafbfc;
+    margin-bottom: 12px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#card-element:focus,
+#uk-postcode:focus,
+#stripe-postcode:focus,
+.password-field-container input:focus {
+    border-color: #388E3C;
+    background: #fff;
+    outline: none;
+    box-shadow: 0 0 0 2px #c8e6c9;
+}
+
+#card-element,
+#uk-postcode,
+#stripe-postcode,
+.password-field-container input {
+    box-shadow: 0 1px 3px rgba(60,60,60,0.06);
 }
 
 #card-errors {
@@ -427,6 +511,83 @@ main {
 #submit-button {
     margin-top: 1.5rem;
     width: 100%;
+}
+
+/* Align label and radio button on the same line */
+.payment-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.payment-option > input[type="radio"],
+.payment-option > label {
+    /* Keep radio and label on one line */
+    flex-shrink: 0;
+}
+
+.payment-details {
+    width: 100%;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    /* Ensure it starts on a new line */
+    flex-basis: 100%;
+}
+
+label[for="payment-stripe"] {
+    display: flex;
+    align-items: center;
+    margin-bottom: 14px;
+    margin-top: 0;
+    padding-top: 0;
+}
+
+/* Add space below the Stripe payment label */
+label[for="payment-stripe"] {
+    display: flex;
+    align-items: center;
+    margin-bottom: 14px; /* Adjust as needed for more/less space */
+}
+
+/* Payment options: align radio, label, and logo, and add spacing */
+.payment-options {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem; /* More space between payment methods */
+}
+
+.payment-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 0.5rem;
+}
+
+.payment-option input[type="radio"] {
+    margin-top: 6px; /* Vertically center radio with label */
+    flex-shrink: 0;
+}
+
+.payment-option label {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    font-size: 1.1em;
+    gap: 8px;
+    margin-bottom: 0;
+}
+
+label[for="payment-stripe"] img {
+    margin-left: 8px;
+    height: 28px;
+}
+
+.payment-details {
+    width: 100%;
+    margin-top: 10px;
+    margin-bottom: 10px;
 }
 
 /* === Order Confirmation === */
@@ -656,4 +817,11 @@ body > span:not(.contained-span) {
 .product-table td {
     position: relative !important;
 }
+
+/* Add spacing between navigation buttons on checkout */
+.checkout-navigation .button {
+    margin-right: 12px;
+    margin-bottom: 8px;
+}
+
 /* Updated April 2025 */
