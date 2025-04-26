@@ -849,3 +849,22 @@ body > span:not(.contained-span) {
     box-sizing: border-box;
     background: #fff;
 }
+
+/* === GDPR Row === */
+#gdpr-row {
+    display: flex;
+    align-items: center;
+    gap: 3px; /* Reduce this for less space */
+}
+#gdpr-row input[type="checkbox"] {
+    margin: 0 2px 0 0; /* Reduce right margin */
+    padding: 0;
+    vertical-align: middle;
+    width: auto;
+    height: auto;
+}
+#gdpr-row label {
+    margin: 0;
+    cursor: pointer;
+    display: inline;
+}
