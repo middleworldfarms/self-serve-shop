@@ -379,6 +379,21 @@ h2 {
             <label for="currency_symbol">Currency Symbol:</label>
             <input type="text" id="currency_symbol" name="currency_symbol" value="<?php echo htmlspecialchars($current_settings['currency_symbol'] ?? '', ENT_QUOTES); ?>">
 
+            <!-- Privacy Policy & Terms Links -->
+            <label for="privacy_policy_url">Privacy Policy URL:</label>
+            <input type="text" id="privacy_policy_url" name="privacy_policy_url" value="<?php echo htmlspecialchars($current_settings['privacy_policy_url'] ?? '', ENT_QUOTES); ?>" placeholder="https://yourdomain.com/privacy-policy" />
+            <small>
+                Enter a full URL (e.g. <code>https://yourdomain.com/privacy-policy</code>) for an external link, or a relative path (e.g. <code>/privacy-policy.php</code>) for an internal page.  
+                You can link to your main site if your policy is hosted there.
+            </small>
+
+            <label for="terms_url">Terms &amp; Conditions URL:</label>
+            <input type="text" id="terms_url" name="terms_url" value="<?php echo htmlspecialchars($current_settings['terms_url'] ?? '', ENT_QUOTES); ?>" placeholder="https://yourdomain.com/terms" />
+            <small>
+                Enter a full URL (e.g. <code>https://yourdomain.com/terms</code>) for an external link, or a relative path (e.g. <code>/terms.php</code>) for an internal page.  
+                You can link to your main site if your terms are hosted there.
+            </small>
+
             <button type="submit" name="save_settings">Save General Settings</button>
         </form>
     <?php elseif ($active_tab === 'branding'): ?>

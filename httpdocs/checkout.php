@@ -543,7 +543,11 @@ require_once 'includes/header.php';
                     <div class="form-row" id="gdpr-row" style="display:flex;align-items:center;gap:10px;">
                         <input type="checkbox" name="gdpr_consent" id="gdpr_consent" required>
                         <label for="gdpr_consent">
-                            I agree to the <a href="/privacy-policy.php" target="_blank">Privacy Policy</a> and understand how my data will be used.
+                            I agree to the
+                            <a href="<?php echo htmlspecialchars($settings['privacy_policy_url'] ?? '/privacy-policy.php'); ?>" target="_blank" rel="noopener">
+                                Privacy Policy
+                            </a>
+                            and understand how my data will be used.
                         </label>
                     </div>
                     
