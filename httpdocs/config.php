@@ -1,8 +1,23 @@
 <?php
+// Add these lines at the very top of the file
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Initialize cart if not exists
+if (!isset($_SESSION['cart']) || !is_array($_SESSION['cart'])) {
+    $_SESSION['cart'] = [];
+}
+
 // Ensure proper character encoding
 mb_internal_encoding('UTF-8');
 if (!headers_sent()) {
     header('Content-Type: text/html; charset=utf-8');
+}
+
+// Start session if not started
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
 }
 
 // Prevent multiple inclusion
@@ -63,11 +78,6 @@ if (!defined('TEXT_COLOR')) define('TEXT_COLOR', '#333333');
 if (!defined('BACKGROUND_COLOR')) define('BACKGROUND_COLOR', '#f5f5f5');
 if (!defined('CUSTOM_HEADER')) define('CUSTOM_HEADER', '');
 if (!defined('CUSTOM_FOOTER')) define('CUSTOM_FOOTER', '');
-
-// Start session if not started
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
 
 // Helper function for currency display
 if (!function_exists('display_currency')) {

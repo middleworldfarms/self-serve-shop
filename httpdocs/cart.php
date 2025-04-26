@@ -41,68 +41,70 @@ require_once 'includes/get_products.php';
 ?>
 
 <main>
-    <div class="container" style="margin-left: 100px; margin-right: 100px;">
-        <h1>Your Cart</h1>
-        
-        <?php if (empty($_SESSION['cart'])): ?>
-            <div class="empty-cart">
-                <h2>Your cart is empty</h2>
-                <p>Browse our products and add items to your cart!</p>
-                <a href="index.php" class="button continue-shopping green-button">View Products</a>
-            </div>
-        <?php else: ?>
-            <form method="post" action="">
-                <table class="cart-table">
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th>Price</th>
-                            <th>Quantity</th>
-                            <th>Total</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        $cart_total = 0;
-                        foreach ($_SESSION['cart'] as $product_id => $quantity) :
-                            $product = get_product_details($product_id);
-                            $item_total = $product['price'] * $quantity;
-                            $cart_total += $item_total;
-                        ?>
-                        <tr>
-                            <td>
-                                <div class="cart-product">
-                                    <img src="<?php echo htmlspecialchars(process_image_url($product['image'])); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="cart-item-image">
-                                    <span><?php echo $product['name']; ?></span>
-                                </div>
-                            </td>
-                            <td><?php echo display_currency($product['price']); ?></td>
-                            <td>
-                                <input type="number" name="quantity[<?php echo $product_id; ?>]" value="<?php echo $quantity; ?>" min="1" class="quantity-input">
-                            </td>
-                            <td><?php echo display_currency($item_total); ?></td>
-                            <td>
-                                <button type="submit" name="remove_item" value="<?php echo $product_id; ?>" class="remove-button">Remove</button>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                        <tr>
-                            <td colspan="3" style="text-align: right;"><strong>Total:</strong></td>
-                            <td colspan="2"><strong><?php echo display_currency($cart_total); ?></strong></td>
-                        </tr>
-                    </tbody>
-                </table>
-                
-                <div class="cart-actions">
-                    <button type="submit" name="update_cart" class="button update-button green-button">Update Cart</button>
-                    <a href="index.php" class="button continue-button green-button">Continue Shopping</a>
-                    <?php if (!empty($_SESSION['cart'])): ?>
-                    <a href="checkout.php" class="button checkout-button green-button">Proceed to Checkout</a>
-                    <?php endif; ?>
+    <div class="container">
+        <div class="container">
+            <h1>Your Cart</h1>
+            
+            <?php if (empty($_SESSION['cart'])): ?>
+                <div class="empty-cart">
+                    <h2>Your cart is empty</h2>
+                    <p>Browse our products and add items to your cart!</p>
+                    <a href="index.php" class="button continue-shopping green-button">View Products</a>
                 </div>
-            </form>
-        <?php endif; ?>
+            <?php else: ?>
+                <form method="post" action="">
+                    <table class="cart-table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Price</th>
+                                <th>Quantity</th>
+                                <th>Total</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            $cart_total = 0;
+                            foreach ($_SESSION['cart'] as $product_id => $quantity) :
+                                $product = get_product_details($product_id);
+                                $item_total = $product['price'] * $quantity;
+                                $cart_total += $item_total;
+                            ?>
+                            <tr>
+                                <td data-label="Product">
+                                    <div class="cart-product">
+                                        <img src="<?php echo htmlspecialchars(process_image_url($product['image'])); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>" class="cart-item-image">
+                                        <span><?php echo $product['name']; ?></span>
+                                    </div>
+                                </td>
+                                <td data-label="Price"><?php echo display_currency($product['price']); ?></td>
+                                <td data-label="Quantity">
+                                    <input type="number" name="quantity[<?php echo $product_id; ?>]" value="<?php echo $quantity; ?>" min="1" class="quantity-input">
+                                </td>
+                                <td data-label="Total"><?php echo display_currency($item_total); ?></td>
+                                <td data-label="Action">
+                                    <button type="submit" name="remove_item" value="<?php echo $product_id; ?>" class="remove-button">Remove</button>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                            <tr>
+                                <td colspan="3" style="text-align: right;"><strong>Total:</strong></td>
+                                <td colspan="2"><strong><?php echo display_currency($cart_total); ?></strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div class="cart-actions">
+                        <button type="submit" name="update_cart" class="button update-button green-button">Update Cart</button>
+                        <a href="index.php" class="button continue-button green-button">Continue Shopping</a>
+                        <?php if (!empty($_SESSION['cart'])): ?>
+                        <a href="checkout.php" class="button checkout-button green-button">Proceed to Checkout</a>
+                        <?php endif; ?>
+                    </div>
+                </form>
+            <?php endif; ?>
+        </div>
     </div>
 </main>
 

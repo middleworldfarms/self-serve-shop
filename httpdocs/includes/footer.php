@@ -18,7 +18,7 @@ $buttonStyle = "display:inline-block;padding:7px 18px;background:{$lighterGreen}
     </div>
     <div style="text-align:center;">
         <?php if (!empty($footer_logo) && ($logo_location === 'footer' || $logo_location === 'both')): ?>
-            <img src="/<?php echo ltrim(htmlspecialchars($footer_logo), '/'); ?>" alt="Site Logo" style="max-width:120px;max-height:48px;display:block;margin:0 auto;">
+            <img src="/<?php echo ltrim(htmlspecialchars($footer_logo), '/'); ?>" alt="Site Logo" class="footer-logo" style="max-width:120px;max-height:48px;display:block;margin:0 auto;">
         <?php endif; ?>
         <?php if (!empty($footer_text)): ?>
             <div style="margin-top:6px;"><?php echo htmlspecialchars($footer_text); ?></div>
@@ -30,5 +30,64 @@ $buttonStyle = "display:inline-block;padding:7px 18px;background:{$lighterGreen}
         <?php endif; ?>
     </div>
 </footer>
+<style>
+@media (max-width: 600px) {
+    footer {
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        align-items: flex-start !important;
+        padding: 10px !important;
+        gap: 5px !important;
+    }
+    
+    footer > div:first-child {
+        width: auto !important;
+        order: 1;
+        margin-right: 5px !important;
+    }
+    
+    footer > div:last-child {
+        width: auto !important;
+        order: 2;
+        margin-left: 5px !important;
+    }
+    
+    footer > div:nth-child(2) {
+        width: 100% !important;
+        order: 3;
+        margin-top: 10px !important;
+        text-align: left !important;
+    }
+    
+    footer a {
+        padding: 6px 10px !important;
+        font-size: 0.85em !important;
+        width: auto !important;
+        max-width: none !important;
+        margin: 0 !important;
+    }
+    
+    .footer-logo {
+        max-width: 90px !important;
+        max-height: 36px !important;
+        margin: 0 !important;
+    }
+}
+
+@media (max-width: 360px) {
+    footer > div:first-child,
+    footer > div:last-child {
+        width: 100% !important;
+        margin: 2px 0 !important;
+    }
+    
+    footer a {
+        width: 100% !important;
+        display: block !important;
+        text-align: center !important;
+        margin-bottom: 5px !important;
+    }
+}
+</style>
 </body>
 </html>
