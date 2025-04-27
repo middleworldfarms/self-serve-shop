@@ -115,6 +115,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_user'])) {
     }
 }
 
+// Handle create user request
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_user'])) {
+    // Verify CSRF token
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $error_message = "Invalid security token.";
+    } else {
+        $username = trim($_POST['username']);
+        $email = trim($_POST['email']);
+        $password = $_POST['password'];
+        $role = $_POST['role'];
+        
+        // Validate inputs
+        if (empty($username) || empty($email) || empty($password) || empty($role)) {
+            $error_message = "All fields are required.";
+        } else {
+            try {
+                // Check if username or email already exists
+                $check = $db->prepare("SELECT COUNT(*) FROM users WHERE username = ? OR email = ?");
+                $check->execute([$username, $email]);
+                if ($check->fetchColumn() > 0) {
+                    $error_message = "Username or email already exists.";
+                } else {
+                    // Hash password and create user
+                    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                    $stmt = $db->prepare("INSERT INTO users (username, email, password, role, created_at) VALUES (?, ?, ?, ?, NOW())");
+                    $stmt->execute([$username, $email, $hashed_password, $role]);
+                    
+                    $success_message = "User created successfully.";
+                }
+            } catch (PDOException $e) {
+                $error_message = "Database error: " . $e->getMessage();
+            }
+        }
+    }
+}
+
 require_once 'includes/header.php';
 ?>
 
