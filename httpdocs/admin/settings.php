@@ -2,6 +2,10 @@
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
+// Add these namespace imports at the top
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
 require_once '../config.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
 
@@ -166,19 +170,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Please enter a valid email address.";
         } else {
             require_once __DIR__ . '/../../vendor/autoload.php';
-            $mail = new PHPMailer(true);
+
+            // Use fully qualified namespace
+            $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
             try {
+                // IMPORTANT: Enable detailed debugging for troubleshooting
+                $mail->SMTPDebug = 3; // Detailed debug output
+                $mail->Debugoutput = 'html'; // Output format
+                
                 $mail->isSMTP();
                 $mail->Host = $current_settings['smtp_host'];
                 $mail->SMTPAuth = true;
-                $mail->Username = $current_settings['smtp_username'];
+                $mail->Username = $current_settings['smtp_username']; // Ensure this is the complete email address
                 $mail->Password = $current_settings['smtp_password'];
                 $mail->SMTPSecure = $current_settings['smtp_encryption'];
                 $mail->Port = $current_settings['smtp_port'];
+                
+                // Special IONOS options
+                $mail->SMTPOptions = array(
+                    'ssl' => array(
+                        'verify_peer' => false,
+                        'verify_peer_name' => false,
+                        'allow_self_signed' => true
+                    )
+                );
+                
+                // Special IONOS auth approach - try LOGIN first
+                $mail->AuthType = 'LOGIN';
+                
                 $mail->setFrom($current_settings['smtp_username'], 'Self-Serve Shop');
                 $mail->addAddress($test_email);
-                $mail->Subject = 'Test Email';
-                $mail->Body = 'This is a test email from the Self-Serve Shop.';
+                $mail->isHTML(true);
+                $mail->Subject = 'Test Email from Self-Serve Shop';
+                $mail->Body = '<p>This is a test email from the Self-Serve Shop.</p>';
+                
+                // Output debug info before sending
+                echo "<div style='background:#f5f5f5;padding:10px;margin:10px 0;border:1px solid #ddd;'>";
+                echo "<h4>Debug Information:</h4>";
+                echo "<p>SMTP Host: " . htmlspecialchars($mail->Host) . "</p>";
+                echo "<p>SMTP Username: " . htmlspecialchars($mail->Username) . "</p>";
+                echo "<p>SMTP Port: " . htmlspecialchars($mail->Port) . "</p>";
+                echo "<p>SMTP Encryption: " . htmlspecialchars($mail->SMTPSecure) . "</p>";
+                echo "<p>Auth Type: " . htmlspecialchars($mail->AuthType) . "</p>";
+                echo "</div>";
+                
                 $mail->send();
                 $message = "Test email sent successfully to $test_email.";
             } catch (Exception $e) {
@@ -327,6 +362,20 @@ h2 {
 .color-hex:focus, .color-rgb:focus {
     border-color: #388E3C;
     outline: none;
+}
+.password-field {
+    display: flex;
+    align-items: center;
+}
+.password-field input[type="password"], .password-field input[type="text"] {
+    flex: 1;
+}
+.toggle-password {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    margin-left: 8px;
+    cursor: pointer;
 }
 @media (max-width: 900px) {
     .admin-container { margin: 10px 0; padding: 10px 2vw; }
@@ -768,7 +817,10 @@ h2 {
             <input type="text" id="smtp_username" name="smtp_username" value="<?php echo htmlspecialchars($current_settings['smtp_username'] ?? '', ENT_QUOTES); ?>" required>
 
             <label for="smtp_password">SMTP Password:</label>
-            <input type="password" id="smtp_password" name="smtp_password" value="<?php echo htmlspecialchars($current_settings['smtp_password'] ?? '', ENT_QUOTES); ?>" required>
+            <div class="password-field">
+                <input type="password" id="smtp_password" name="smtp_password" value="<?php echo htmlspecialchars($current_settings['smtp_password'] ?? '', ENT_QUOTES); ?>" required>
+                <button type="button" class="toggle-password" onclick="togglePasswordVisibility('smtp_password')">👁️</button>
+            </div>
 
             <button type="submit" name="save_email_settings">Save Email Settings</button>
         </form>
@@ -821,7 +873,7 @@ function hexToRgb(hex) {
     var r = (bigint >> 16) & 255;
     var g = (bigint >> 8) & 255;
     var b = bigint & 255;
-    return 'rgb(' + r + ', ' + g + ', ' + b + ')';
+    return 'rgb(' + r + ', ' + b + ', ' + g + ')';
 }
 function rgbToHex(rgb) {
     var result = rgb.match(/\d+/g);
@@ -858,6 +910,17 @@ function rgbToHex(rgb) {
         }
     });
 });
+function togglePasswordVisibility(inputId) {
+    const passwordInput = document.getElementById(inputId);
+    const toggleButton = passwordInput.nextElementSibling;
+    if (passwordInput.type === "password") {
+        passwordInput.type = "text";
+        toggleButton.textContent = "🔒";
+    } else {
+        passwordInput.type = "password";
+        toggleButton.textContent = "👁️";
+    }
+}
 </script>
 
 <?php require_once 'includes/footer.php'; ?>

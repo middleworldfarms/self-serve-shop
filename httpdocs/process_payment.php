@@ -121,9 +121,9 @@ try {
     $to = $data['email'];
     $subject = "Order Confirmation - " . SHOP_NAME;
     $message = "Thank you for your order!\n\n$order_details";
-    $headers = "From: " . SHOP_EMAIL;
 
-    mail($to, $subject, $message, $headers);
+    require_once 'includes/email_service.php';
+    send_shop_email($to, $subject, $message, strip_tags($message));
 
     // Return response based on the payment status
     $response = [

@@ -17,7 +17,23 @@ try {
 }
 
 // Get order ID from URL parameter
-$order_id = isset($_GET['order_id']) ? $_GET['order_id'] : '';
+if (isset($_GET['order_id'])) {
+    $order_id = $_GET['order_id'];
+} else if (isset($_SESSION['last_order_id'])) {
+    $order_id = $_SESSION['last_order_id'];
+} else {
+    header('Location: index.php');
+    exit;
+}
+
+// Format check - if we have a 14-digit order number, it needs to be
+// converted to match our database format (10 digits)
+if (strlen($order_id) > 10) {
+    // Extract just the last 10 digits which should match our database format
+    $order_id = substr($order_id, -10);
+    error_log("Reformatted order ID to: " . $order_id);
+}
+
 $order_number = isset($_GET['order_number']) ? $_GET['order_number'] : '';
 $order_exists = false;
 
@@ -37,6 +53,7 @@ if (!empty($order_id) || !empty($order_number)) {
         if ($order_data) {
             $order_exists = true;
             $order_id = $order_data['id'];
+            $order = $order_data; // Add this line to create $order variable
             $order_number = $order_data['order_number'];
             $payment_method = $order_data['payment_method'];
             $cart_total = $order_data['total_amount'];
@@ -64,6 +81,9 @@ if (empty($order_id) || !isset($_SESSION['last_order_id']) || $_SESSION['last_or
     header('Location: index.php');
     exit;
 }
+
+// Check if email was sent successfully
+$email_sent = isset($_GET['email_sent']) && $_GET['email_sent'] == '1';
 
 // Set up page title for the header
 $page_title = 'Order Confirmation';
@@ -206,11 +226,57 @@ require_once 'includes/header.php';
             </div>
             <?php endif; ?>
             
+            <div class="receipt-options">
+                <h3>Receipt Options</h3>
+                
+                <?php if ($email_sent): ?>
+                <div class="success-message" style="background-color: #DFF2BF; color: #4F8A10; padding: 10px; border-radius: 4px; margin-bottom: 15px; text-align: center;">
+                    <p><strong>Success!</strong> The receipt has been emailed successfully.</p>
+                </div>
+                <?php endif; ?>
+                
+                <div class="receipt-buttons">
+                    <button onclick="window.print();" class="receipt-button">Print Receipt</button>
+                    <a href="generate_receipt.php?order_id=<?php echo substr($order_id, -10); ?>" class="receipt-button">Download PDF</a>
+                    <button id="email-receipt-btn" class="receipt-button">Email Receipt</button>
+                </div>
+
+                <div id="email-receipt-form">
+                    <form method="post" action="email_receipt.php">
+                        <input type="hidden" name="order_id" value="<?php echo substr($order_id, -10); ?>">
+                        <div class="form-group">
+                            <label for="email">Email address:</label>
+                            <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($order_data['customer_email'] ?? ''); ?>" required>
+                        </div>
+                        <button type="submit" class="button">Send Receipt</button>
+                    </form>
+                </div>
+            </div>
+            
             <div class="continue-shopping">
                 <a href="index.php" class="button">Continue Shopping</a>
             </div>
         </div>
     </div>
 </main>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const emailBtn = document.getElementById('email-receipt-btn');
+    const emailForm = document.getElementById('email-receipt-form');
+    
+    if (emailBtn && emailForm) {
+        emailBtn.addEventListener('click', function() {
+            if (emailForm.style.display === 'block') {
+                emailForm.style.display = 'none';
+                emailBtn.textContent = 'Email Receipt';
+            } else {
+                emailForm.style.display = 'block';
+                emailBtn.textContent = 'Cancel';
+            }
+        });
+    }
+});
+</script>
 
 <?php require_once 'includes/footer.php'; ?>

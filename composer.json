@@ -1,6 +1,8 @@
 {
     "require": {
-        "phpmailer/phpmailer": "^6.9",
-        "stripe/stripe-php": "^17.1"
+        "phpmailer/phpmailer": "^6.10",
+        "stripe/stripe-php": "^17.1",
+        "mpdf/mpdf": "^8.2",
+        "sendinblue/api-v3-sdk": "^8.4"
     }
 }

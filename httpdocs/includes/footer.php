@@ -10,13 +10,13 @@ $footer_logo = $settings['site_logo'] ?? '';
 $logo_location = $settings['logo_location'] ?? 'header';
 $buttonStyle = "display:inline-block;padding:7px 18px;background:{$lighterGreen};color:#fff;border-radius:5px;text-decoration:none;font-weight:600;margin-bottom:15px;";
 ?>
-<footer style="display:flex;justify-content:space-between;align-items:center;padding:18px 24px;background:<?php echo htmlspecialchars($primary); ?>;border-top:1.5px solid #e0e4ea;font-size:1em;color:#fff;">
-    <div>
+<footer style="display:flex;justify-content:center;align-items:center;padding:18px 24px;background:<?php echo htmlspecialchars($primary); ?>;border-top:1.5px solid #e0e4ea;font-size:1em;color:#fff;flex-wrap:wrap;gap:15px;">
+    <div style="flex: 1; text-align: center; min-width: 150px;">
         <?php if (!empty($settings['terms_url'])): ?>
             <a href="<?php echo htmlspecialchars($settings['terms_url']); ?>" target="_blank" rel="noopener" style="<?php echo $buttonStyle; ?>">Terms &amp; Conditions</a>
         <?php endif; ?>
     </div>
-    <div style="text-align:center;">
+    <div style="flex: 2; text-align:center; min-width: 200px;">
         <?php if (!empty($footer_logo) && ($logo_location === 'footer' || $logo_location === 'both')): ?>
             <img src="/<?php echo ltrim(htmlspecialchars($footer_logo), '/'); ?>" alt="Site Logo" class="footer-logo" style="max-width:120px;max-height:48px;display:block;margin:0 auto;">
         <?php endif; ?>
@@ -24,7 +24,7 @@ $buttonStyle = "display:inline-block;padding:7px 18px;background:{$lighterGreen}
             <div style="margin-top:6px;"><?php echo htmlspecialchars($footer_text); ?></div>
         <?php endif; ?>
     </div>
-    <div>
+    <div style="flex: 1; text-align: center; min-width: 150px;">
         <?php if (!empty($settings['privacy_policy_url'])): ?>
             <a href="<?php echo htmlspecialchars($settings['privacy_policy_url']); ?>" target="_blank" rel="noopener" style="<?php echo $buttonStyle; ?>">Privacy Policy</a>
         <?php endif; ?>
