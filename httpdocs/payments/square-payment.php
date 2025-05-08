@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../autoload.php';
 require_once __DIR__ . '/../config.php';
+require_once 'includes/create_woocommerce_order.php';
 
 function processSquarePayment($order_id, $amount, $currency = 'GBP', $source_id) {
     global $db;
@@ -41,6 +42,7 @@ function processSquarePayment($order_id, $amount, $currency = 'GBP', $source_id)
         
         if ($response->isSuccess()) {
             $payment = $response->getResult()->getPayment();
+            create_woocommerce_order($order_id); // or pass $order_number, or adapt as needed
             return [
                 'success' => true,
                 'transaction_id' => $payment->getId(),

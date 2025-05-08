@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../autoload.php';
 require_once __DIR__ . '/../config.php';
+require_once 'includes/create_woocommerce_order.php';
 
 function processAppleGooglePay($order_id, $amount, $token, $paymentMethod = 'apple_pay') {
     global $db;
@@ -33,6 +34,7 @@ function processAppleGooglePay($order_id, $amount, $token, $paymentMethod = 'app
         ]);
         
         if ($payment_intent->status === 'succeeded') {
+            create_woocommerce_order($order_id);
             return [
                 'success' => true,
                 'transaction_id' => $payment_intent->id,

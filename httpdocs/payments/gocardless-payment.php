@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../autoload.php';
 require_once __DIR__ . '/../config.php';
+require_once 'includes/create_woocommerce_order.php';
 
 function processGoCardlessPayment($order_id, $amount, $payment_data) {
     global $db;
@@ -50,6 +51,8 @@ function processGoCardlessPayment($order_id, $amount, $payment_data) {
                 'description' => 'Self-serve shop order #' . $order_id
             ]);
             
+            create_woocommerce_order($order_id);
+            
             return [
                 'success' => true,
                 'transaction_id' => $payment->id,
@@ -69,6 +72,8 @@ function processGoCardlessPayment($order_id, $amount, $payment_data) {
                 ],
                 'description' => 'Self-serve shop order #' . $order_id
             ]);
+            
+            create_woocommerce_order($order_id);
             
             return [
                 'success' => true,

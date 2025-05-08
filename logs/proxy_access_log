@@ -5860,3 +5860,5 @@
 52.169.84.108 - - [07/May/2025:21:19:12 +0000] "GET /server.php HTTP/1.1" 301 162 "-" "-"
 52.169.84.108 - - [07/May/2025:21:19:12 +0000] "GET /wp-includes/sodium_compat/autoload_classmap.php HTTP/1.1" 301 162 "-" "-"
 182.43.70.143 - - [07/May/2025:21:47:03 +0000] "GET / HTTP/1.1" 301 162 "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1"
+104.210.140.134 - - [07/May/2025:22:59:08 +0000] "GET /robots.txt HTTP/1.1" 301 162 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36; compatible; OAI-SearchBot/1.0; +https://openai.com/searchbot"
+43.153.49.151 - - [07/May/2025:23:46:05 +0000] "GET / HTTP/1.1" 301 162 "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1"

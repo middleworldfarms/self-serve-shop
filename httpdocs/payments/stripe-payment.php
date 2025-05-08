@@ -12,6 +12,8 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
     die("Stripe library not found. Please install using: composer require stripe/stripe-php");
 }
 
+require_once 'includes/create_woocommerce_order.php';
+
 // Now use the Stripe library
 function processStripePayment($order_id, $amount, $params = []) {
     global $db;
@@ -74,6 +76,7 @@ function processStripePayment($order_id, $amount, $params = []) {
             ];
         } else if ($intent->status === 'succeeded') {
             // Payment succeeded
+            create_woocommerce_order($order_id); // or pass $order_number, or adapt as needed
             return [
                 'success' => true,
                 'transaction_id' => $intent->id

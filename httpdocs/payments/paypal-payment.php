@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../autoload.php';
 require_once __DIR__ . '/../config.php';
+require_once 'includes/create_woocommerce_order.php';
 
 function processPayPalPayment($order_id, $amount, $paypal_order_id) {
     global $db;
@@ -58,6 +59,7 @@ function processPayPalPayment($order_id, $amount, $paypal_order_id) {
         $response = json_decode($result);
         
         if ($response->status === 'COMPLETED') {
+            create_woocommerce_order($order_id); // or pass $order_number, or adapt as needed
             return [
                 'success' => true,
                 'transaction_id' => $response->id,

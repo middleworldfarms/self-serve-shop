@@ -198,6 +198,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Clear the cart
                     $_SESSION['cart'] = [];
                     
+                    // Create WooCommerce order
+                    require_once 'includes/create_woocommerce_order.php';
+                    create_woocommerce_order($order_id);
+                    
                     // Redirect to confirmation page
                     header("Location: order_confirmation.php?order_id={$order_id}&order_number={$order_number}");
                     exit;
@@ -278,6 +282,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                             // Clear the cart
                             $_SESSION['cart'] = [];
+
+                            // Create WooCommerce order
+                            require_once 'includes/create_woocommerce_order.php';
+                            create_woocommerce_order($order_id);
 
                             // Redirect to confirmation page
                             header("Location: order_confirmation.php?order_id={$order_id}&order_number={$order_number}");
