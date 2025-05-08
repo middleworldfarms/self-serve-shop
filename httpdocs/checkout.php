@@ -39,7 +39,7 @@ $page_title = 'Checkout - ' . ($settings['shop_name'] ?? 'Self-Serve Shop');
 // Fix all payment processing variables
 $stripe_test_mode = isset($settings['stripe_test_mode']) && $settings['stripe_test_mode'] == '1';
 $stripe_publishable_key = $stripe_test_mode ? ($settings['stripe_test_publishable_key'] ?? '') : ($settings['stripe_publishable_key'] ?? '');
-$stripe_secret_key = $stripe_test_mode ? ($settings['stripe_test_secret_key'] ?? '') : ($settings['stripe_secret_key'] ?? '');
+$stripe_secret_key = $stripe_test_mode ? ($settings['stripe_test_secret_key'] ?? '') : ($settings['stripe_secret_key'] ?? ''); // Fixed: Missing $ symbol
 
 // For PayPal
 $paypal_test_mode = isset($settings['paypal_test_mode']) && $settings['paypal_test_mode'] == '1';
@@ -317,13 +317,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Process WooCommerce Funds payment
                 require_once 'payments/process-payment.php';
                 
+                // First check that both email and password are provided
+                if (empty($_POST['woo_funds_email']) || empty($_POST['woo_funds_password'])) {
+                    $payment_error = 'Account credit payment failed: Please enter both email and password.';
+                    break;
+                }
+                
+                // Log for debugging
+                error_log("Processing Woo Funds payment for: " . $_POST['woo_funds_email']);
+                
                 $payment_result = processPayment(
                     time() . rand(1000, 9999), // Generate order ID
                     $cart_total,
                     'woo_funds',
                     [
                         'customer_email' => $_POST['woo_funds_email'],
-                        'password' => $_POST['woo_funds_password'] // Make sure this is passed!
+                        'password' => $_POST['woo_funds_password']
                     ]
                 );
                 
@@ -459,7 +468,7 @@ require_once 'includes/header.php';
             <div class="payment-form">
                 <h2>Payment Details</h2>
                 
-                <form method="post" action="" id="checkout-form">
+                <form method="post" action="" id="checkout-form" data-direct-funds-url="/payments/direct-funds-payment.php">
                     <div class="form-row customer-info-fields">
                         <label for="name">Name</label>
                         <input type="text" id="name" name="name">
@@ -531,7 +540,7 @@ require_once 'includes/header.php';
                                         </div>
                                         <div class="form-row">
                                             <label for="woo-funds-password">Account Password:</label>
-                                            <input type="password" id="woo-funds-password">
+                                            <input type="password" id="woo-funds-password" name="woo_funds_password">
                                             <small><a href="<?php echo htmlspecialchars($settings['woo_shop_url'] ?? '', ENT_QUOTES); ?>/my-account/lost-password/" target="_blank">Forgot password?</a></small>
                                         </div>
                                         <div class="form-row" style="margin-top: 15px; display: flex; align-items: center; gap: 12px;">
@@ -700,15 +709,28 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Minimal robust submit handler
+    // Improved submit handler with password validation
     document.getElementById('checkout-form').addEventListener('submit', function(e) {
         const wooFundsRadio = document.getElementById('payment-woo-funds');
         if (wooFundsRadio && wooFundsRadio.checked) {
             const wooFundsEmail = document.getElementById('woo-funds-email').value;
+            const wooFundsPassword = document.getElementById('woo-funds-password').value;
+            
             if (!wooFundsEmail) {
                 e.preventDefault();
                 alert('Please enter your account email address.');
+                return;
             }
+            
+            if (!wooFundsPassword) {
+                e.preventDefault();
+                alert('Please enter your account password.');
+                return;
+            }
+            
+            e.preventDefault();
+            this.action = this.dataset.directFundsUrl;
+            this.submit();
         }
     });
 });

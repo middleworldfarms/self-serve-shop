@@ -48,9 +48,18 @@ $manual_order_data = [
 ];
 
 // Sync order to WooCommerce
-create_woocommerce_order(null, $manual_order_data);
+$order_id = create_woocommerce_order(null, $manual_order_data);
 
-echo "Order placed, funds deducted, and synced to WooCommerce.";
+// Redirect to order confirmation page
+if ($order_id) {
+    // Save order ID in session for confirmation page
+    $_SESSION['last_order_id'] = $order_id;
+    // Add email_sent=1 to the URL
+    header("Location: /order_confirmation.php?order_id=" . urlencode($order_id) . "&email_sent=1");
+    exit;
+} else {
+    exit('Order failed to sync to WooCommerce.');
+}
 
 // --- Deduct funds helper ---
 function processWooFundsDeduction($customer_email, $amount) {
@@ -67,6 +76,8 @@ function processWooFundsDeduction($customer_email, $amount) {
 
     $endpoint = rtrim($woocommerce_site_url, '/') . '/wp-json/mwf/v1/funds';
 
+    error_log("Deducting funds: endpoint=$endpoint, email=$customer_email, amount=$amount, api_key=$api_key");
+
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $endpoint);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -82,12 +93,20 @@ function processWooFundsDeduction($customer_email, $amount) {
     ]);
     $response = curl_exec($ch);
     $err = curl_error($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
     if ($err) {
         return [
             'success' => false,
             'error' => "cURL Error: $err"
+        ];
+    }
+
+    if ($http_code !== 200) {
+        return [
+            'success' => false,
+            'error' => "HTTP error: $http_code, response: $response"
         ];
     }
 

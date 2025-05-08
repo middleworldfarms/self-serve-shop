@@ -15,12 +15,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['order_id'])) {
     die("Invalid request - missing order_id");
 }
 
-// Get email from form
-$order_id = (int)$_POST['order_id'];
+// Get order ID from form
+$order_id = $_POST['order_id']; // Don't cast to int
 $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
 
-// Debug to see what's happening
-error_log("Email receipt requested for Order ID: $order_id, Email: $email");
+// Debug to see what's happening (more detailed)
+error_log("Email receipt requested - Raw ID from form: '{$_POST['order_id']}', After variable: '$order_id', Email: '$email'");
 
 if (!$email) {
     die("Invalid email address");
@@ -47,21 +47,28 @@ try {
     error_log("Failed to update SMTP password: " . $e->getMessage());
 }
 
-// Get order data
-$stmt = $db->prepare("SELECT * FROM orders WHERE id = ? OR order_number = ?");
-$stmt->execute([$order_id, $order_id]);
+// Add remaining_balance column to orders table
+try {
+    $stmt = $db->prepare("ALTER TABLE orders ADD COLUMN remaining_balance DECIMAL(10,2) DEFAULT NULL AFTER payment_status");
+    $stmt->execute();
+    error_log("Added remaining_balance column to orders table");
+} catch (PDOException $e) {
+    error_log("Failed to add remaining_balance column: " . $e->getMessage());
+}
+
+// Get order data - try all possible fields
+$stmt = $db->prepare("SELECT * FROM orders WHERE id = ? OR order_number = ? OR CAST(order_number AS CHAR) = ?");
+$stmt->execute([$order_id, $order_id, $order_id]);
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$order) {
-    // Try one more approach with just order_number
-    $stmt = $db->prepare("SELECT * FROM orders WHERE order_number = ?");
-    $stmt->execute([$order_id]);
-    $order = $stmt->fetch(PDO::FETCH_ASSOC);
-}
-
-if (!$order) {
+    // Log details about the order we're trying to find
+    $debug_query = $db->prepare("SELECT id, order_number FROM orders ORDER BY id DESC LIMIT 5");
+    $debug_query->execute();
+    $recent_orders = $debug_query->fetchAll(PDO::FETCH_ASSOC);
+    error_log("Recent orders in database: " . json_encode($recent_orders));
     error_log("Order not found in database for ID: $order_id");
-    die("Order not found");
+    die("Order not found (ID: $order_id)");
 }
 
 // Try to get settings from the correct table - check both tables
@@ -131,8 +138,17 @@ $email_body = '
         
         <div class="order-details">
             <p><strong>Date:</strong> ' . date('F j, Y', strtotime($order['created_at'])) . '</p>
-            <p><strong>Payment Method:</strong> ' . ucfirst(htmlspecialchars($order['payment_method'])) . '</p>
-            
+            <p><strong>Payment Method:</strong> ' . ucfirst(htmlspecialchars($order['payment_method'])) . '</p>';
+
+if ($order['payment_method'] == 'woo_funds' && isset($order['remaining_balance'])) {
+    $email_body .= '
+            <p style="background-color: #e8f5e9; padding: 10px; border-radius: 5px;">
+                <strong>Account Credit:</strong> Payment completed using your account credit.<br>
+                <strong>Remaining Balance:</strong> &pound;' . number_format($order['remaining_balance'], 2) . '
+            </p>';
+}
+
+$email_body .= '
             <h3>Items Purchased</h3>
             <table>
                 <tr>
@@ -186,3 +202,4 @@ if (send_shop_email(
     echo "<p>You can try again or download the PDF receipt instead.</p>";
     echo "<p><a href='order_confirmation.php?order_id={$order_id}'>Return to order</a></p>";
 }
+?>

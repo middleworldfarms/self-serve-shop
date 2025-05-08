@@ -76,11 +76,15 @@ if (!$order_exists) {
     $payment_method = isset($_SESSION['payment_method']) ? $_SESSION['payment_method'] : 'manual';
 }
 
-// If no order ID or not in session, redirect to homepage
-if (empty($order_id) || !isset($_SESSION['last_order_id']) || $_SESSION['last_order_id'] != $order_id) {
+// If no order ID, redirect to homepage
+if (empty($order_id)) {
     header('Location: index.php');
     exit;
 }
+
+// Add debug logging
+error_log("Order confirmation accessed. order_id=$order_id, session_last_order=" . 
+          ($_SESSION['last_order_id'] ?? 'NOT SET'));
 
 // Check if email was sent successfully
 $email_sent = isset($_GET['email_sent']) && $_GET['email_sent'] == '1';
