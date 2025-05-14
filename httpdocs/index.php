@@ -6,14 +6,49 @@ if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = array();
 }
 
+// Initialize cart_items if not exists
+if (!isset($_SESSION['cart_items'])) {
+    $_SESSION['cart_items'] = array();
+}
+
 // Handle adding items to cart
 if (isset($_POST['add_to_cart']) && isset($_POST['product_id'])) {
     $product_id = intval($_POST['product_id']);
     $quantity = isset($_POST['quantity']) ? intval($_POST['quantity']) : 1;
-    if (isset($_SESSION['cart'][$product_id])) {
-        $_SESSION['cart'][$product_id] += $quantity;
-    } else {
-        $_SESSION['cart'][$product_id] = $quantity;
+    
+    // Get full product details including WooCommerce ID
+    try {
+        $db = new PDO(
+            'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME,
+            DB_USER,
+            DB_PASS
+        );
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+        $stmt = $db->prepare("SELECT id, name, price, regular_price, sale_price, image, woocommerce_id FROM sss_products WHERE id = ?");
+        $stmt->execute([$product_id]);
+        $product = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($product) {
+            // Update cart quantity
+            if (isset($_SESSION['cart'][$product_id])) {
+                $_SESSION['cart'][$product_id] += $quantity;
+            } else {
+                $_SESSION['cart'][$product_id] = $quantity;
+            }
+            
+            // Store product details in cart_items
+            $price = ($product['sale_price'] > 0) ? $product['sale_price'] : ($product['regular_price'] > 0 ? $product['regular_price'] : $product['price']);
+            $_SESSION['cart_items'][$product_id] = [
+                'id' => $product['id'],
+                'name' => $product['name'],
+                'price' => floatval($price),
+                'quantity' => $quantity,
+                'woocommerce_id' => $product['woocommerce_id'] // CRUCIAL: Include WooCommerce ID
+            ];
+        }
+    } catch (Exception $e) {
+        error_log("Error adding product to cart: " . $e->getMessage());
     }
     
     // Redirect to the same page (or to a specific page)
@@ -35,7 +70,8 @@ function get_direct_products() {
         );
         $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-        $stmt = $db->query("SELECT id, name, price, regular_price, sale_price, image FROM sss_products WHERE status = 'active' ORDER BY name ASC");
+        // Add woocommerce_id to the SELECT statement
+        $stmt = $db->query("SELECT id, name, price, regular_price, sale_price, image, woocommerce_id FROM sss_products WHERE status = 'active' ORDER BY name ASC");
         $products = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $price = ($row['sale_price'] > 0) ? $row['sale_price'] : ($row['regular_price'] > 0 ? $row['regular_price'] : $row['price']);
@@ -43,7 +79,8 @@ function get_direct_products() {
                 'id' => $row['id'],
                 'price' => floatval($price),
                 'name' => $row['name'],
-                'image' => $row['image'] ? $row['image'] : '/admin/uploads/Shopping bag.png'
+                'image' => $row['image'] ? $row['image'] : '/admin/uploads/Shopping bag.png',
+                'woocommerce_id' => $row['woocommerce_id'] // CRUCIAL: Include WooCommerce ID
             ];
         }
         return $products;

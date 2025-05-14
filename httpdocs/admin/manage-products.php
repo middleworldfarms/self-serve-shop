@@ -45,7 +45,9 @@ $db->query("
         image VARCHAR(255),
         status ENUM('active', 'inactive') DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        woocommerce_id INT(11) NULL,
+        woo_product_id INT(11) NULL
     ) ENGINE=InnoDB;
 ");
 
@@ -276,6 +278,7 @@ if (isset($_POST['import_woocommerce'])) {
         $imported = 0;
         if (is_array($woo_products)) {
             foreach ($woo_products as $product) {
+                $woo_id = $product['id']; // Get the WooCommerce product ID
                 $name = $product['name'];
                 $description = $product['description'];
                 $price = $product['price'];
@@ -283,35 +286,21 @@ if (isset($_POST['import_woocommerce'])) {
                 $sale_price = $product['sale_price'];
                 $image = !empty($product['images']) ? $product['images'][0]['src'] : '';
                 
-                // Check if we should preserve existing status
-                $preserve_status = empty($settings['sync_preserve_status']) ? true : ($settings['sync_preserve_status'] == '1');
-                if ($preserve_status) {
-                    // Check if product already exists to keep its status
-                    $check_stmt = $db->prepare("SELECT id, status FROM sss_products WHERE name = ?");
-                    $check_stmt->execute([$name]);
-                    $existing = $check_stmt->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($existing) {
-                        // Keep existing status for existing products
-                        $status = $existing['status'];
-                    } else {
-                        // Default for new products
-                        $status = 'inactive'; // Conservative default
-                    }
-                } else {
-                    // Update status based on WooCommerce
-                    $status = ($product['status'] === 'publish') ? 'active' : 'inactive';
-                }
-
-                // Insert or update by name
+                // Check if product exists by name
                 $stmt = $db->prepare("SELECT id FROM sss_products WHERE name = ?");
                 $stmt->execute([$name]);
+                
                 if ($stmt->fetch()) {
-                    $stmt = $db->prepare("UPDATE sss_products SET description=?, price=?, regular_price=?, sale_price=?, image=?, status=? WHERE name=?");
-                    $stmt->execute([$description, $price, $regular_price, $sale_price, $image, $status, $name]);
+                    // Update existing product
+                    $stmt = $db->prepare("UPDATE sss_products SET woocommerce_id = ?, woo_product_id = ?, 
+                                         price = ?, regular_price = ?, sale_price = ? WHERE name = ?");
+                    $stmt->execute([$woo_id, $woo_id, $price, $regular_price, $sale_price, $name]);
                 } else {
-                    $stmt = $db->prepare("INSERT INTO sss_products (name, description, price, regular_price, sale_price, image, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([$name, $description, $price, $regular_price, $sale_price, $image, $status]);
+                    // Insert new product
+                    $stmt = $db->prepare("INSERT INTO sss_products (name, woocommerce_id, woo_product_id, 
+                                         description, price, regular_price, sale_price, image, status) 
+                                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')");
+                    $stmt->execute([$name, $woo_id, $woo_id, $description, $price, $regular_price, $sale_price, $image]);
                 }
                 $imported++;
             }

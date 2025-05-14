@@ -76,7 +76,55 @@ function processStripePayment($order_id, $amount, $params = []) {
             ];
         } else if ($intent->status === 'succeeded') {
             // Payment succeeded
-            create_woocommerce_order($order_id); // or pass $order_number, or adapt as needed
+            
+            // Build line items with WooCommerce IDs
+            $line_items = [];
+            try {
+                // Get items from order
+                $stmt = $db->prepare("SELECT items FROM orders WHERE id = ?");
+                $stmt->execute([$order_id]);
+                $items_json = $stmt->fetchColumn();
+                
+                if ($items_json) {
+                    $items = json_decode($items_json, true);
+                } else {
+                    // If no items in order, try to get from session
+                    $items = $_SESSION['cart_items'] ?? [];
+                }
+                
+                foreach ($items as $item) {
+                    // Get WooCommerce ID if not already in the item
+                    if (empty($item['woocommerce_id'])) {
+                        $stmt = $db->prepare("SELECT woocommerce_id FROM sss_products WHERE id = ?");
+                        $stmt->execute([$item['id']]);
+                        $woo_id = $stmt->fetchColumn();
+                    } else {
+                        $woo_id = $item['woocommerce_id'];
+                    }
+                    
+                    if ($woo_id) {
+                        $line_items[] = [
+                            'product_id' => (int)$woo_id,
+                            'quantity' => (int)$item['quantity']
+                        ];
+                    }
+                }
+                
+                // Create order data
+                $order_data = [
+                    'payment_method' => 'stripe',
+                    'payment_method_title' => 'Credit Card',
+                    'set_paid' => true,
+                    'status' => 'processing',
+                    'line_items' => $line_items
+                ];
+                
+                // Create the WooCommerce order with complete data
+                create_woocommerce_order($order_id, $order_data);
+            } catch (Exception $e) {
+                error_log("Error creating WooCommerce order for Stripe payment: " . $e->getMessage());
+            }
+            
             return [
                 'success' => true,
                 'transaction_id' => $intent->id

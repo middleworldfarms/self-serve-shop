@@ -326,15 +326,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Log for debugging
                 error_log("Processing Woo Funds payment for: " . $_POST['woo_funds_email']);
                 
-                $payment_result = processPayment(
-                    time() . rand(1000, 9999), // Generate order ID
-                    $cart_total,
-                    'woo_funds',
-                    [
-                        'customer_email' => $_POST['woo_funds_email'],
+                $order_details = [
+                    'customer_name' => $_POST['name'] ?? 'Account Customer',
+                    'customer_email' => $_POST['woo_funds_email'],
+                    'total_amount' => $cart_total,
+                    'items' => $cart_items,
+                    'auth' => [
+                        'email' => $_POST['woo_funds_email'],
                         'password' => $_POST['woo_funds_password']
                     ]
-                );
+                ];
+
+                $payment_result = process_payment('woo_funds', $order_details);
                 
                 if ($payment_result['success']) {
                     // Payment successful - store transaction ID and new balance
@@ -468,7 +471,7 @@ require_once 'includes/header.php';
             <div class="payment-form">
                 <h2>Payment Details</h2>
                 
-                <form method="post" action="" id="checkout-form" data-direct-funds-url="/payments/direct-funds-payment.php">
+                <form method="post" action="" id="checkout-form" data-direct-funds-url="/payments/woo-funds-payment.php">
                     <div class="form-row customer-info-fields">
                         <label for="name">Name</label>
                         <input type="text" id="name" name="name">
@@ -728,9 +731,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            e.preventDefault();
-            this.action = this.dataset.directFundsUrl;
-            this.submit();
+            // Let the form submit normally to checkout.php
         }
     });
 });
